@@ -2,15 +2,14 @@ Metadata-Version: 2.4
 Name: rapidfit
 Version: 0.1.0
 Summary: Build multi-task classifiers and augment classification datasets with ease
-Author-email: Abu Bakr Soliman <bakrianoo@myemail.com>
-License: MIT
+Author-email: Abu Bakr Soliman <bakrianoo@gmail.com>
+License-Expression: MIT
 Project-URL: Homepage, https://github.com/bakrianoo/RapidFit
 Project-URL: Repository, https://github.com/bakrianoo/RapidFit
 Keywords: machine-learning,transformers,multi-task-learning,classification,data-augmentation,nlp
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: Intended Audience :: Science/Research
-Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Programming Language :: Python :: 3.11

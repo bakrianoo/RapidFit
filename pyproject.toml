@@ -7,17 +7,16 @@ name = "rapidfit"
 version = "0.1.0"
 description = "Build multi-task classifiers and augment classification datasets with ease"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    {name = "Abu Bakr Soliman", email = "bakrianoo@myemail.com"}
+    {name = "Abu Bakr Soliman", email = "bakrianoo@gmail.com"}
 ]
 keywords = ["machine-learning", "transformers", "multi-task-learning", "classification", "data-augmentation", "nlp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -41,3 +40,6 @@ Repository = "https://github.com/bakrianoo/RapidFit"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+rapidfit = ["prompts/*.txt"]

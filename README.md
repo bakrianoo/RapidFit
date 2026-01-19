@@ -1,12 +1,8 @@
 # RapidFit
 
-Build multi-task classifiers and augment classification datasets with ease.
+Turn a handful of labeled examples into a production-ready multi-task classifier.
 
-## Features
-
-- **Multi-task Classification**: Train classifiers that handle multiple classification tasks simultaneously
-- **Data Augmentation**: Expand and enhance your classification datasets using LLM-based generation
-- **Flexible Saving**: Save data in JSON, JSONL, or CSV formats with incremental or batch saving
+RapidFit handles the two biggest pain points in text classification: **not enough data** and **too many separate models**. Give it a few examples per class, and it will generate more training data using LLMs, then train a single model that handles all your classification tasks at once.
 
 ## Installation
 
@@ -14,202 +10,83 @@ Build multi-task classifiers and augment classification datasets with ease.
 pip install rapidfit
 ```
 
-## Development Installation
+## Augment Your Data
 
-```bash
-pip install -e .
-```
-
-## Quick Start
-
-### Data Augmentation
+Start with just a few examples. RapidFit uses LLMs to expand your dataset while preserving label quality.
 
 ```python
-from rapidfit import LLMAugmenter, SaveFormat
+from rapidfit import LLMAugmenter
 
-# Prepare seed data
 seed_data = {
-    "sentiment-analysis": [
+    "sentiment": [
         {"text": "I love this product!", "label": "positive"},
         {"text": "Terrible experience.", "label": "negative"},
-        {"text": "It's okay, nothing special.", "label": "neutral"},
     ],
-    "emotion-analysis": [
+    "emotion": [
         {"text": "This makes me so happy!", "label": "joy"},
         {"text": "I can't believe they did this.", "label": "anger"},
-        {"text": "I miss the old days.", "label": "sadness"},
     ],
 }
 
-# Initialize augmenter
-augmenter = LLMAugmenter(
-    api_key="your-openai-api-key",
-    base_url=None,  # Optional: custom API endpoint
-    model_id="gpt-4.1-mini",  # Optional: model to use
-    max_samples_per_task=128,  # Optional: max samples per task
-    batch_size=8,  # Optional: samples per generation batch
-    max_temperature=0.9,  # Optional: max temperature for sampling
-    save_path="./saved",  # Optional: output directory
-    save_format=SaveFormat.JSON,  # Optional: json, jsonl, or csv
-    save_separated=False,  # Optional: separate file per task
-    save_incremental=True,  # Optional: save while generating
-)
-
-# Augment dataset
-augmented_data = augmenter.augment(seed_data)
+augmenter = LLMAugmenter(api_key="your-api-key")
+augmented = augmenter.augment(seed_data)
 ```
 
-### Save Options
+Configure generation with optional parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `save_path` | `"./saved"` | Directory for output files |
-| `save_format` | `json` | Output format: `json`, `jsonl`, `csv` |
-| `save_separated` | `False` | Create separate file for each task |
-| `save_incremental` | `True` | Save progressively during generation |
+| `model_id` | `gpt-4.1-mini` | LLM to use for generation |
+| `max_samples_per_task` | `128` | Target samples per task |
+| `batch_size` | `8` | Samples per generation call |
+| `save_path` | `./saved` | Output directory |
+| `save_format` | `json` | Format: `json`, `jsonl`, or `csv` |
 
-### Custom Augmenter
+## Train a Classifier
 
-Extend `BaseAugmenter` to create custom augmentation strategies:
-
-```python
-from rapidfit import BaseAugmenter, SeedData
-
-class MyAugmenter(BaseAugmenter):
-    def augment(self, seed_data: SeedData) -> SeedData:
-        # Your augmentation logic here
-        return seed_data
-```
-
-## Running
-
-### Install Dependencies
-
-```bash
-pip install -e .
-```
-
-### Run Augmentation
-
-```bash
-export OPENAI_API_KEY="your-api-key"
-python examples/test_augmentation.py
-```
-
-Optional environment variables:
-- `OPENAI_BASE_URL` - Custom API endpoint
-- `OPENAI_MODEL_ID` - Model to use (default: `gpt-4.1-mini`)
-
-Output saves to `./saved/` directory.
-
-## Classification
-
-### Training a Multihead Classifier
-
-```python
-from rapidfit import MultiheadClassifier
-
-# Prepare data (or load from augmented files)
-seed_data = {
-    "sentiment": [
-        {"text": "I love this!", "label": "positive"},
-        {"text": "Terrible.", "label": "negative"},
-    ],
-    "emotion": [
-        {"text": "So happy!", "label": "joy"},
-        {"text": "I'm angry.", "label": "anger"},
-    ],
-}
-
-# Create classifier with custom config
-classifier = MultiheadClassifier({
-    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    "batch_size": 16,
-    "epochs": 10,
-    "freeze_epochs": 3,
-    "patience": 3,
-})
-
-# Train
-classifier.train(seed_data)
-
-# Save model
-classifier.save("./model")
-
-# Predict
-predictions = classifier.predict(["Great product!"], task="sentiment")
-print(predictions)  # [{"label": "positive", "confidence": 0.95}]
-
-# Predict all tasks at once
-all_preds = classifier.predict_all_tasks(["Great product!"])
-```
-
-### Load a Trained Model
+One model, multiple tasks. The multihead architecture shares a single encoder across all your classification tasks, making it efficient and consistent.
 
 ```python
 from rapidfit import MultiheadClassifier
 
 classifier = MultiheadClassifier()
-classifier.load("./model")
-
-predictions = classifier.predict(["Test text"], task="sentiment")
+classifier.train(augmented)
+classifier.save("./model")
 ```
 
-### Training Configuration
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `model_name` | `paraphrase-multilingual-MiniLM-L12-v2` | HuggingFace model |
-| `batch_size` | `16` | Training batch size |
-| `epochs` | `10` | Fine-tuning epochs |
-| `freeze_epochs` | `3` | Epochs with frozen encoder |
-| `learning_rate` | `2e-5` | Learning rate for fine-tuning |
-| `patience` | `3` | Early stopping patience |
-| `dropout_rate` | `0.2` | Dropout rate |
-| `label_smoothing` | `0.1` | Label smoothing factor |
-| `use_class_weights` | `True` | Handle class imbalance |
-| `test_size` | `0.1` | Test split ratio |
-| `val_size` | `0.1` | Validation split ratio |
-
-### Run Training Example
-
-```bash
-# First, generate augmented data
-python examples/test_augmentation.py
-
-# Then train classifier
-python examples/train_classifier.py
-```
-
-### Custom Classifier
-
-Extend `BaseClassifier` to create custom classification strategies:
+Customize training:
 
 ```python
-from rapidfit import BaseClassifier
-from rapidfit.types import AugmentResult, Prediction, SeedData
-
-class MyClassifier(BaseClassifier):
-    def train(self, data: SeedData | AugmentResult) -> None:
-        samples = self._resolve_data(data)
-        # Training logic here
-
-    def predict(self, texts: list[str], task: str) -> list[Prediction]:
-        # Prediction logic here
-        return [{"label": "class", "confidence": 0.95}]
-
-    def save(self, path):
-        # Save model
-
-    def load(self, path):
-        # Load model
+classifier = MultiheadClassifier({
+    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "epochs": 10,
+    "freeze_epochs": 3,
+    "learning_rate": 2e-5,
+    "patience": 3,
+})
 ```
 
-### Available Classifier Types
+## Predict
 
-| Type | Description |
-|------|-------------|
-| `MULTIHEAD` | Shared encoder with task-specific classification heads |
+```python
+classifier = MultiheadClassifier()
+classifier.load("./model")
+
+# Single task
+classifier.predict(["Great product!"], task="sentiment")
+# [{"label": "positive", "confidence": 0.95}]
+
+# All tasks
+classifier.predict_all_tasks(["Great product!"])
+```
+
+## Extend It
+
+Build custom augmenters or classifiers by extending the base classes:
+
+```python
+from rapidfit import BaseAugmenter, BaseClassifier
+```
 
 ## License
 
