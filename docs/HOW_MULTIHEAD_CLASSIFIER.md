@@ -319,6 +319,21 @@ config = MultiheadConfig(pooling="max")
 classifier = MultiheadClassifier()
 ```
 
+### Changing the base model
+```python
+config = MultiheadConfig(
+    training=TrainingConfig(
+        model_name="FacebookAI/xlm-roberta-base",  # Or any HuggingFace model
+    ),
+)
+```
+
+Common model choices:
+- `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (default, fast, multilingual)
+- `FacebookAI/xlm-roberta-base` (stronger multilingual understanding)
+- `sentence-transformers/all-MiniLM-L6-v2` (fastest, English only)
+- `microsoft/deberta-v3-base` (high accuracy, English)
+
 ### For production
 ```python
 config = MultiheadConfig(
