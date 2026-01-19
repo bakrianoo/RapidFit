@@ -5,6 +5,9 @@ dist/
 build/
 *.egg
 .eggs/
+model/
+saved/
+training_output/
 
 *.csv
 *.json

@@ -60,6 +60,27 @@ class Prediction(TypedDict):
     confidence: float
 
 
+class TrainConfig(TypedDict, total=False):
+    """Configuration for classifier training."""
+    model_name: str
+    max_length: int
+    batch_size: int
+    epochs: int
+    learning_rate: float
+    weight_decay: float
+    warmup_ratio: float
+    dropout_rate: float
+    label_smoothing: float
+    use_mean_pooling: bool
+    freeze_epochs: int
+    patience: int
+    test_size: float
+    val_size: float
+    use_class_weights: bool
+    output_dir: str
+    save_path: str
+
+
 SeedData = dict[str, list[Sample]]
 """Mapping of task names to lists of samples."""
 

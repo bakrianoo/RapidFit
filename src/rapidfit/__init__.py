@@ -19,6 +19,7 @@ from rapidfit.types import (
     SeedData,
     TaskResult,
     TaskStats,
+    TrainConfig,
 )
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "SeedData",
     "TaskResult",
     "TaskStats",
+    "TrainConfig",
     "create_classifier",
 ]

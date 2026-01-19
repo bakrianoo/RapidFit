@@ -104,23 +104,81 @@ Output saves to `./saved/` directory.
 
 ## Classification
 
-### Training a Classifier
+### Training a Multihead Classifier
 
 ```python
-from rapidfit import LLMAugmenter, create_classifier, ClassifierType
+from rapidfit import MultiheadClassifier
 
-# Augment data first
-augmenter = LLMAugmenter(api_key="your-key")
-result = augmenter.augment(seed_data)
+# Prepare data (or load from augmented files)
+seed_data = {
+    "sentiment": [
+        {"text": "I love this!", "label": "positive"},
+        {"text": "Terrible.", "label": "negative"},
+    ],
+    "emotion": [
+        {"text": "So happy!", "label": "joy"},
+        {"text": "I'm angry.", "label": "anger"},
+    ],
+}
 
-# Create classifier using factory
-classifier = create_classifier(ClassifierType.MULTIHEAD)
+# Create classifier with custom config
+classifier = MultiheadClassifier({
+    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "batch_size": 16,
+    "epochs": 10,
+    "freeze_epochs": 3,
+    "patience": 3,
+})
 
-# Train on augmented data
-classifier.train(result)
-
-# Or train directly on seed data
+# Train
 classifier.train(seed_data)
+
+# Save model
+classifier.save("./model")
+
+# Predict
+predictions = classifier.predict(["Great product!"], task="sentiment")
+print(predictions)  # [{"label": "positive", "confidence": 0.95}]
+
+# Predict all tasks at once
+all_preds = classifier.predict_all_tasks(["Great product!"])
+```
+
+### Load a Trained Model
+
+```python
+from rapidfit import MultiheadClassifier
+
+classifier = MultiheadClassifier()
+classifier.load("./model")
+
+predictions = classifier.predict(["Test text"], task="sentiment")
+```
+
+### Training Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `model_name` | `paraphrase-multilingual-MiniLM-L12-v2` | HuggingFace model |
+| `batch_size` | `16` | Training batch size |
+| `epochs` | `10` | Fine-tuning epochs |
+| `freeze_epochs` | `3` | Epochs with frozen encoder |
+| `learning_rate` | `2e-5` | Learning rate for fine-tuning |
+| `patience` | `3` | Early stopping patience |
+| `dropout_rate` | `0.2` | Dropout rate |
+| `label_smoothing` | `0.1` | Label smoothing factor |
+| `use_class_weights` | `True` | Handle class imbalance |
+| `test_size` | `0.1` | Test split ratio |
+| `val_size` | `0.1` | Validation split ratio |
+
+### Run Training Example
+
+```bash
+# First, generate augmented data
+python examples/test_augmentation.py
+
+# Then train classifier
+python examples/train_classifier.py
 ```
 
 ### Custom Classifier

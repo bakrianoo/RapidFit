@@ -19,9 +19,14 @@ Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: openai>=1.0.0
-Requires-Dist: json-repair>=0.30.0
-Requires-Dist: rich>=13.0.0
+Requires-Dist: openai>=2.0.0
+Requires-Dist: json-repair>=0.55.0
+Requires-Dist: rich>=14.0.0
+Requires-Dist: torch>=2.0.0
+Requires-Dist: transformers>=4.57.3
+Requires-Dist: datasets>=4.2.0
+Requires-Dist: scikit-learn>=1.6.1
+Requires-Dist: accelerate>=0.26.0
 Dynamic: license-file
 
 # RapidFit
@@ -127,6 +132,115 @@ Optional environment variables:
 - `OPENAI_MODEL_ID` - Model to use (default: `gpt-4.1-mini`)
 
 Output saves to `./saved/` directory.
+
+## Classification
+
+### Training a Multihead Classifier
+
+```python
+from rapidfit import MultiheadClassifier
+
+# Prepare data (or load from augmented files)
+seed_data = {
+    "sentiment": [
+        {"text": "I love this!", "label": "positive"},
+        {"text": "Terrible.", "label": "negative"},
+    ],
+    "emotion": [
+        {"text": "So happy!", "label": "joy"},
+        {"text": "I'm angry.", "label": "anger"},
+    ],
+}
+
+# Create classifier with custom config
+classifier = MultiheadClassifier({
+    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "batch_size": 16,
+    "epochs": 10,
+    "freeze_epochs": 3,
+    "patience": 3,
+})
+
+# Train
+classifier.train(seed_data)
+
+# Save model
+classifier.save("./model")
+
+# Predict
+predictions = classifier.predict(["Great product!"], task="sentiment")
+print(predictions)  # [{"label": "positive", "confidence": 0.95}]
+
+# Predict all tasks at once
+all_preds = classifier.predict_all_tasks(["Great product!"])
+```
+
+### Load a Trained Model
+
+```python
+from rapidfit import MultiheadClassifier
+
+classifier = MultiheadClassifier()
+classifier.load("./model")
+
+predictions = classifier.predict(["Test text"], task="sentiment")
+```
+
+### Training Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `model_name` | `paraphrase-multilingual-MiniLM-L12-v2` | HuggingFace model |
+| `batch_size` | `16` | Training batch size |
+| `epochs` | `10` | Fine-tuning epochs |
+| `freeze_epochs` | `3` | Epochs with frozen encoder |
+| `learning_rate` | `2e-5` | Learning rate for fine-tuning |
+| `patience` | `3` | Early stopping patience |
+| `dropout_rate` | `0.2` | Dropout rate |
+| `label_smoothing` | `0.1` | Label smoothing factor |
+| `use_class_weights` | `True` | Handle class imbalance |
+| `test_size` | `0.1` | Test split ratio |
+| `val_size` | `0.1` | Validation split ratio |
+
+### Run Training Example
+
+```bash
+# First, generate augmented data
+python examples/test_augmentation.py
+
+# Then train classifier
+python examples/train_classifier.py
+```
+
+### Custom Classifier
+
+Extend `BaseClassifier` to create custom classification strategies:
+
+```python
+from rapidfit import BaseClassifier
+from rapidfit.types import AugmentResult, Prediction, SeedData
+
+class MyClassifier(BaseClassifier):
+    def train(self, data: SeedData | AugmentResult) -> None:
+        samples = self._resolve_data(data)
+        # Training logic here
+
+    def predict(self, texts: list[str], task: str) -> list[Prediction]:
+        # Prediction logic here
+        return [{"label": "class", "confidence": 0.95}]
+
+    def save(self, path):
+        # Save model
+
+    def load(self, path):
+        # Load model
+```
+
+### Available Classifier Types
+
+| Type | Description |
+|------|-------------|
+| `MULTIHEAD` | Shared encoder with task-specific classification heads |
 
 ## License
 
