@@ -1,0 +1,22 @@
+Analyze these classification samples to understand each class.
+
+Task: {task_name}
+
+Samples:
+{samples}
+
+For each class, identify:
+1. Languages present with approximate distribution
+2. General writing style (keep brief)
+3. Character length range (min, max)
+4. 2-3 key characteristics that define this class
+
+Return concise JSON:
+{{
+  "class_label": {{
+    "languages": {{"en": 0.5, "ar": 0.3, "hi": 0.2}},
+    "style": "brief style description",
+    "length": {{"min": 10, "max": 200}},
+    "do": ["key characteristic 1", "key characteristic 2"]
+  }}
+}}

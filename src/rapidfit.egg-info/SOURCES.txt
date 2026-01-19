@@ -2,8 +2,16 @@ LICENSE
 README.md
 pyproject.toml
 src/rapidfit/__init__.py
+src/rapidfit/io.py
+src/rapidfit/types.py
 src/rapidfit.egg-info/PKG-INFO
 src/rapidfit.egg-info/SOURCES.txt
 src/rapidfit.egg-info/dependency_links.txt
 src/rapidfit.egg-info/requires.txt
 src/rapidfit.egg-info/top_level.txt
+src/rapidfit/augmenters/__init__.py
+src/rapidfit/augmenters/base.py
+src/rapidfit/augmenters/llm.py
+src/rapidfit/clients/__init__.py
+src/rapidfit/clients/chat.py
+src/rapidfit/prompts/__init__.py

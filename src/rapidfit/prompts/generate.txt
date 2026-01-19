@@ -1,0 +1,19 @@
+Generate {count} unique and diverse texts for "{task_name}" classification, class "{label}".
+
+Requirements:
+- Languages: {languages}
+- Length range: {length_min}-{length_max} chars
+- Style hint: {style}
+
+Guidelines (use as inspiration, not strict rules):
+{do_list}
+
+Ensure variety by:
+- Using different sentence structures
+- Varying vocabulary and phrasing
+- Mixing formal and informal tones
+- Including different contexts and scenarios
+
+{edge_cases}
+
+Return ONLY a JSON array of {count} unique strings. No duplicates.
