@@ -54,6 +54,12 @@ class TaskResult(TypedDict):
     stats: TaskStats
 
 
+class Prediction(TypedDict):
+    """A single prediction result."""
+    label: str
+    confidence: float
+
+
 SeedData = dict[str, list[Sample]]
 """Mapping of task names to lists of samples."""
 
@@ -62,3 +68,6 @@ AugmentResult = dict[str, TaskResult]
 
 TaskPrompts = dict[str, dict[str, ClassInstruction]]
 """Mapping of task names to class instructions."""
+
+ClassifierConfig = dict[str, any]
+"""Configuration dictionary for classifiers."""

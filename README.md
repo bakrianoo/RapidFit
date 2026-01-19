@@ -102,6 +102,57 @@ Optional environment variables:
 
 Output saves to `./saved/` directory.
 
+## Classification
+
+### Training a Classifier
+
+```python
+from rapidfit import LLMAugmenter, create_classifier, ClassifierType
+
+# Augment data first
+augmenter = LLMAugmenter(api_key="your-key")
+result = augmenter.augment(seed_data)
+
+# Create classifier using factory
+classifier = create_classifier(ClassifierType.MULTIHEAD)
+
+# Train on augmented data
+classifier.train(result)
+
+# Or train directly on seed data
+classifier.train(seed_data)
+```
+
+### Custom Classifier
+
+Extend `BaseClassifier` to create custom classification strategies:
+
+```python
+from rapidfit import BaseClassifier
+from rapidfit.types import AugmentResult, Prediction, SeedData
+
+class MyClassifier(BaseClassifier):
+    def train(self, data: SeedData | AugmentResult) -> None:
+        samples = self._resolve_data(data)
+        # Training logic here
+
+    def predict(self, texts: list[str], task: str) -> list[Prediction]:
+        # Prediction logic here
+        return [{"label": "class", "confidence": 0.95}]
+
+    def save(self, path):
+        # Save model
+
+    def load(self, path):
+        # Load model
+```
+
+### Available Classifier Types
+
+| Type | Description |
+|------|-------------|
+| `MULTIHEAD` | Shared encoder with task-specific classification heads |
+
 ## License
 
 MIT
