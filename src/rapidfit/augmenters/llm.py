@@ -10,7 +10,7 @@ from rapidfit.augmenters.base import BaseAugmenter
 from rapidfit.clients import ChatClient
 from rapidfit.io import DataSaver
 from rapidfit.prompts import load_prompt
-from rapidfit.types import AugmentResult, ClassInstruction, Sample, SaveFormat, SeedData, TaskPrompts
+from rapidfit.types import AugmentResult, ClassInstruction, Sample, SaveFormat, SeedData, TaskPrompts, WriteMode
 
 
 class LLMAugmenter(BaseAugmenter):
@@ -27,6 +27,7 @@ class LLMAugmenter(BaseAugmenter):
         save_path: str = "./saved",
         save_format: SaveFormat | str = SaveFormat.JSON,
         save_incremental: bool = True,
+        write_mode: WriteMode | str = WriteMode.OVERWRITE,
     ) -> None:
         """
         Initialize LLM augmenter.
@@ -41,6 +42,7 @@ class LLMAugmenter(BaseAugmenter):
             save_path: Directory to save generated data.
             save_format: Output format (json, jsonl, csv).
             save_incremental: Save while generating instead of at the end.
+            write_mode: How to handle existing files (overwrite or append).
         """
         self._client = ChatClient(api_key, base_url, model_id)
         self._max_samples = max_samples_per_task
@@ -51,6 +53,7 @@ class LLMAugmenter(BaseAugmenter):
         self._console = Console()
         self._saver = DataSaver(save_path, save_format)
         self._save_incremental = save_incremental
+        self._write_mode = WriteMode(write_mode) if isinstance(write_mode, str) else write_mode
 
     def augment(self, seed_data: SeedData) -> AugmentResult:
         """
@@ -120,21 +123,34 @@ class LLMAugmenter(BaseAugmenter):
             console=self._console,
         ) as progress:
             for task_name, samples in seed_data.items():
+                existing = self._load_existing(task_name)
+                existing_texts = {s["text"] for s in existing}
+                base_samples = existing if existing else list(samples)
+
                 class_instructions = task_prompts.get(task_name, {})
                 labels = list(class_instructions.keys())
 
                 if not labels:
-                    augmented[task_name] = samples
-                    path = self._saver.save_task(task_name, samples)
+                    augmented[task_name] = base_samples
+                    path = self._saver.save_task(task_name, base_samples)
                     result[task_name] = {
                         "path": path,
-                        "stats": self._compute_stats(samples),
+                        "stats": self._compute_stats(base_samples),
                     }
                     continue
 
-                counts = self._calculate_distribution(labels)
-                augmented[task_name] = list(samples)
+                counts = self._calculate_distribution(labels, len(base_samples))
+                augmented[task_name] = base_samples
                 total_samples = sum(counts.values())
+
+                if total_samples <= 0:
+                    path = self._saver.save_task(task_name, augmented[task_name])
+                    result[task_name] = {
+                        "path": path,
+                        "stats": self._compute_stats(augmented[task_name]),
+                    }
+                    continue
+
                 task_id = progress.add_task(
                     f"[bold]{task_name}[/]",
                     total=total_samples,
@@ -154,7 +170,7 @@ class LLMAugmenter(BaseAugmenter):
                         tokens=self._client.total_tokens,
                     )
                     new_samples = self._generate_for_class(
-                        task_name, label, class_instructions[label], needed, progress, task_id
+                        task_name, label, class_instructions[label], needed, existing_texts, progress, task_id
                     )
                     augmented[task_name].extend(new_samples)
 
@@ -172,6 +188,12 @@ class LLMAugmenter(BaseAugmenter):
         )
         return result
 
+    def _load_existing(self, task_name: str) -> list[Sample]:
+        """Load existing samples if in append mode."""
+        if self._write_mode == WriteMode.APPEND:
+            return self._saver.load_task(task_name)
+        return []
+
     def _compute_stats(self, samples: list[Sample]) -> dict:
         """Compute label distribution stats."""
         labels: dict[str, int] = {}
@@ -179,9 +201,10 @@ class LLMAugmenter(BaseAugmenter):
             labels[s["label"]] = labels.get(s["label"], 0) + 1
         return {"total": len(samples), "labels": labels}
 
-    def _calculate_distribution(self, labels: list[str]) -> dict[str, int]:
+    def _calculate_distribution(self, labels: list[str], existing_count: int = 0) -> dict[str, int]:
         """Calculate how many samples to generate per class for balance."""
-        per_class = self._max_samples // len(labels)
+        remaining = max(0, self._max_samples - existing_count)
+        per_class = remaining // len(labels)
         return {label: per_class for label in labels}
 
     def _generate_for_class(
@@ -190,6 +213,7 @@ class LLMAugmenter(BaseAugmenter):
         label: str,
         instruction: ClassInstruction,
         count: int,
+        existing_texts: set[str],
         progress: Progress,
         task_id: int,
     ) -> list[Sample]:
@@ -222,8 +246,9 @@ class LLMAugmenter(BaseAugmenter):
             if isinstance(texts, list):
                 for t in texts:
                     text = str(t).strip()
-                    if text and text not in collected:
+                    if text and text not in collected and text not in existing_texts:
                         collected.add(text)
+                        existing_texts.add(text)
                         progress.update(
                             task_id,
                             calls=self._client.call_count,

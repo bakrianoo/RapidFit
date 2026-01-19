@@ -2,7 +2,7 @@
 
 import os
 
-from rapidfit import LLMAugmenter, MultiheadClassifier, SaveFormat
+from rapidfit import LLMAugmenter, MultiheadClassifier, SaveFormat, WriteMode
 
 
 def main():
@@ -34,6 +34,7 @@ def main():
         save_path="./saved",
         save_format=SaveFormat.JSONL,
         save_incremental=True,
+        write_mode=WriteMode.APPEND,
     )
 
     augment_result = augmenter.augment(seed_data)

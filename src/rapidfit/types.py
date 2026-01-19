@@ -11,6 +11,12 @@ class SaveFormat(Enum):
     CSV = "csv"
 
 
+class WriteMode(Enum):
+    """Mode for handling existing data files."""
+    OVERWRITE = "overwrite"
+    APPEND = "append"
+
+
 class Sample(TypedDict):
     """A single classification sample."""
     text: str

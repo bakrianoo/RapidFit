@@ -41,6 +41,9 @@ Configure generation with optional parameters:
 | `batch_size` | `8` | Samples per generation call |
 | `save_path` | `./saved` | Output directory |
 | `save_format` | `json` | Format: `json`, `jsonl`, or `csv` |
+| `write_mode` | `overwrite` | `overwrite` or `append` to existing data |
+
+When using `append` mode, RapidFit loads existing data from the save path and skips duplicate texts during generation.
 
 ## Train a Classifier
 

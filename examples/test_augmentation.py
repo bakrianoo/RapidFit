@@ -1,7 +1,7 @@
 """Test script for LLM-based data augmentation."""
 
 import os
-from rapidfit import LLMAugmenter
+from rapidfit import LLMAugmenter, WriteMode
 from rapidfit.types import SaveFormat
 
 
@@ -60,6 +60,7 @@ def main():
         save_path="./saved",
         save_format=SaveFormat.JSONL,
         save_incremental=True,
+        write_mode=WriteMode.APPEND,
     )
 
     print("Starting augmentation...")

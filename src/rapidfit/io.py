@@ -4,11 +4,11 @@ import csv
 import json
 from pathlib import Path
 
-from rapidfit.types import Sample, SaveFormat, SeedData
+from rapidfit.types import Sample, SaveFormat
 
 
 class DataSaver:
-    """Handles saving classification data in various formats."""
+    """Handles saving and loading classification data in various formats."""
 
     def __init__(
         self,
@@ -19,13 +19,11 @@ class DataSaver:
         self._format = SaveFormat(save_format) if isinstance(save_format, str) else save_format
         self._path.mkdir(parents=True, exist_ok=True)
 
-    def save(self, data: SeedData) -> dict[str, str]:
+    def save(self, data: dict[str, list[Sample]]) -> dict[str, str]:
         """Save complete dataset, one file per task."""
         paths = {}
         for task, samples in data.items():
-            path = self._task_path(task)
-            self._write(path, samples)
-            paths[task] = str(path.resolve())
+            paths[task] = self.save_task(task, samples)
         return paths
 
     def save_task(self, task: str, samples: list[Sample]) -> str:
@@ -33,6 +31,13 @@ class DataSaver:
         path = self._task_path(task)
         self._write(path, samples)
         return str(path.resolve())
+
+    def load_task(self, task: str) -> list[Sample]:
+        """Load samples for a single task. Returns empty list if not found."""
+        path = self._task_path(task)
+        if not path.exists():
+            return []
+        return self._read(path)
 
     def _task_path(self, task: str) -> Path:
         """Get file path for a task."""
@@ -53,3 +58,19 @@ class DataSaver:
                 writer = csv.DictWriter(f, fieldnames=["text", "label"])
                 writer.writeheader()
                 writer.writerows(samples)
+
+    def _read(self, path: Path) -> list[Sample]:
+        """Read samples from file."""
+        if self._format == SaveFormat.JSON:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        elif self._format == SaveFormat.JSONL:
+            samples = []
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        samples.append(json.loads(line))
+            return samples
+        elif self._format == SaveFormat.CSV:
+            with open(path, encoding="utf-8", newline="") as f:
+                return list(csv.DictReader(f))
