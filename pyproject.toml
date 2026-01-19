@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rapidfit"
+version = "0.1.0"
+description = "Build multi-task classifiers and augment classification datasets with ease"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Abu Bakr Soliman", email = "https://github.com/bakrianoo"}
+]
+keywords = ["machine-learning", "transformers", "multi-task-learning", "classification", "data-augmentation", "nlp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/yourusername/rapidfit"
+Repository = "https://github.com/yourusername/rapidfit"
+
+[tool.setuptools.packages.find]
+where = ["src"]
