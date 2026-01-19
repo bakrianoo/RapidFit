@@ -296,6 +296,32 @@ config = MultiheadConfig(pooling="max")
 
 ---
 
+### Use Case 9: "I want to control train/validation/test splits"
+
+**Problem**: The default 10% test and 10% validation splits don't fit your needs. You want more data for training or a larger test set.
+
+**Solution**: Adjust split sizes in `TrainingConfig`.
+
+```python
+from rapidfit import MultiheadConfig, TrainingConfig
+
+config = MultiheadConfig(
+    training=TrainingConfig(
+        test_size=0.15,   # 15% for test set (default: 0.1)
+        val_size=0.15,    # 15% for validation set (default: 0.1)
+    ),
+)
+```
+
+**What's happening**: With defaults (0.1 each), the split is approximately 81% train, 9% validation, 10% test. The validation set is carved from the remaining data after the test split.
+
+**Quick guide**:
+- Small dataset (<1000 samples): Use smaller splits (`test_size=0.1`, `val_size=0.1`)
+- Large dataset (>10000 samples): Can afford larger test sets (`test_size=0.2`)
+- Need more training data: Reduce both (`test_size=0.05`, `val_size=0.05`)
+
+---
+
 ## Configuration Quick Reference
 
 | I want to... | Configuration |
@@ -308,6 +334,7 @@ config = MultiheadConfig(pooling="max")
 | Learn complex patterns | `head.hidden_layers=2` |
 | Get maximum accuracy | `encoder.unfreeze_layers=6`, `training.epochs=20` |
 | Handle short texts | `pooling="cls"` |
+| Control data splits | `training.test_size=0.15`, `training.val_size=0.15` |
 
 ---
 
