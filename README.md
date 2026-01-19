@@ -60,14 +60,16 @@ classifier.save("./model")
 Customize training:
 
 ```python
-classifier = MultiheadClassifier({
-    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    "epochs": 10,
-    "freeze_epochs": 3,
-    "learning_rate": 2e-5,
-    "patience": 3,
-})
+from rapidfit import MultiheadConfig, TrainingConfig, LossConfig
+
+config = MultiheadConfig(
+    training=TrainingConfig(epochs=10, learning_rate=2e-5),
+    loss=LossConfig(use_class_weights=True),
+)
+classifier = MultiheadClassifier(config)
 ```
+
+For a complete guide on configuration options and use cases, see [How the Multihead Classifier Works](docs/HOW_MULTIHEAD_CLASSIFIER.md).
 
 ## Predict
 

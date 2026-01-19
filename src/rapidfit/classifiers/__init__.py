@@ -3,6 +3,15 @@
 from enum import Enum
 
 from rapidfit.classifiers.base import BaseClassifier
+from rapidfit.classifiers.config import (
+    DEFAULT_CONFIG,
+    EncoderConfig,
+    EvalConfig,
+    HeadConfig,
+    LossConfig,
+    MultiheadConfig,
+    TrainingConfig,
+)
 from rapidfit.classifiers.multihead import MultiheadClassifier
 from rapidfit.types import ClassifierConfig
 
@@ -14,14 +23,14 @@ class ClassifierType(Enum):
 
 def create_classifier(
     classifier_type: ClassifierType | str = ClassifierType.MULTIHEAD,
-    config: ClassifierConfig | None = None,
+    config: ClassifierConfig | MultiheadConfig | None = None,
 ) -> BaseClassifier:
     """
     Factory function to create classifiers.
 
     Args:
         classifier_type: Type of classifier to create.
-        config: Optional configuration dict.
+        config: Optional configuration dict or MultiheadConfig.
 
     Returns:
         Configured classifier instance.
@@ -43,6 +52,13 @@ def create_classifier(
 __all__ = [
     "BaseClassifier",
     "ClassifierType",
+    "DEFAULT_CONFIG",
+    "EncoderConfig",
+    "EvalConfig",
+    "HeadConfig",
+    "LossConfig",
     "MultiheadClassifier",
+    "MultiheadConfig",
+    "TrainingConfig",
     "create_classifier",
 ]

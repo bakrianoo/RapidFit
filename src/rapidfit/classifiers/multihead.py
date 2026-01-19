@@ -3,6 +3,7 @@
 import os
 import random
 from collections import Counter, defaultdict
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -22,29 +23,16 @@ from transformers import (
 )
 
 from rapidfit.classifiers.base import BaseClassifier
-from rapidfit.types import AugmentResult, Prediction, SeedData, TrainConfig
+from rapidfit.classifiers.components import Pooler, TaskHeads, TaskLoss
+from rapidfit.classifiers.config import (
+    DEFAULT_CONFIG,
+    HeadConfig,
+    LossConfig,
+    MultiheadConfig,
+)
+from rapidfit.types import AugmentResult, Prediction, SeedData
 
 console = Console()
-
-DEFAULT_CONFIG: TrainConfig = {
-    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    "max_length": 128,
-    "batch_size": 16,
-    "epochs": 10,
-    "learning_rate": 2e-5,
-    "weight_decay": 0.01,
-    "warmup_ratio": 0.1,
-    "dropout_rate": 0.2,
-    "label_smoothing": 0.1,
-    "use_mean_pooling": True,
-    "freeze_epochs": 3,
-    "patience": 3,
-    "test_size": 0.1,
-    "val_size": 0.1,
-    "use_class_weights": True,
-    "output_dir": "./training_output",
-    "save_path": "./model",
-}
 
 
 class _MultiTaskModel(nn.Module):
@@ -56,33 +44,28 @@ class _MultiTaskModel(nn.Module):
         task_num_labels: dict[str, int],
         task_label2id: dict[str, dict[str, int]],
         task_id2label: dict[str, dict[int, str]],
-        dropout_rate: float = 0.2,
-        use_mean_pooling: bool = True,
-        label_smoothing: float = 0.1,
+        head_config: HeadConfig,
+        loss_config: LossConfig,
+        pooling: str = "mean",
     ) -> None:
         super().__init__()
         self.encoder = AutoModel.from_pretrained(model_name)
         self.task_num_labels = task_num_labels
         self.task_label2id = task_label2id
         self.task_id2label = task_id2label
-        self.use_mean_pooling = use_mean_pooling
-        self.label_smoothing = label_smoothing
-        self.task_class_weights: dict[str, torch.Tensor] = {}
 
         hidden_size = self.encoder.config.hidden_size
-        self.task_heads = nn.ModuleDict({
-            task: nn.Sequential(
-                nn.Linear(hidden_size, hidden_size),
-                nn.GELU(),
-                nn.Dropout(dropout_rate),
-                nn.Linear(hidden_size, num_labels),
-            )
-            for task, num_labels in task_num_labels.items()
-        })
-        self.dropout = nn.Dropout(dropout_rate)
+        self.pooler = Pooler(pooling)
+        self.dropout = nn.Dropout(head_config.dropout)
+        self.task_heads = TaskHeads(hidden_size, task_num_labels, head_config)
+        self.task_loss = TaskLoss(loss_config)
+
+        self._head_config = head_config
+        self._loss_config = loss_config
+        self._pooling = pooling
 
     def set_class_weights(self, weights: dict[str, torch.Tensor]) -> None:
-        self.task_class_weights = weights
+        self.task_loss.set_class_weights(weights)
 
     def freeze_encoder(self) -> None:
         for param in self.encoder.parameters():
@@ -106,13 +89,6 @@ class _MultiTaskModel(nn.Module):
             for param in self.encoder.parameters():
                 param.requires_grad = True
 
-    def _mean_pooling(
-        self, token_embeddings: torch.Tensor, attention_mask: torch.Tensor
-    ) -> torch.Tensor:
-        mask = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-        summed = torch.sum(token_embeddings * mask, dim=1)
-        return summed / torch.clamp(mask.sum(dim=1), min=1e-9)
-
     def forward(
         self,
         input_ids: torch.Tensor,
@@ -121,22 +97,13 @@ class _MultiTaskModel(nn.Module):
         labels: torch.Tensor | None = None,
     ) -> dict[str, Any]:
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-
-        if self.use_mean_pooling:
-            pooled = self._mean_pooling(outputs.last_hidden_state, attention_mask)
-        else:
-            pooled = outputs.last_hidden_state[:, 0]
-
+        pooled = self.pooler(outputs.last_hidden_state, attention_mask)
         pooled = self.dropout(pooled)
         logits = self.task_heads[task_name](pooled)
 
         loss = None
         if labels is not None:
-            weight = self.task_class_weights.get(task_name)
-            if weight is not None:
-                weight = weight.to(logits.device)
-            loss_fn = nn.CrossEntropyLoss(weight=weight, label_smoothing=self.label_smoothing)
-            loss = loss_fn(logits, labels)
+            loss = self.task_loss.compute(logits, labels, task_name)
 
         return {"loss": loss, "logits": logits}
 
@@ -144,43 +111,51 @@ class _MultiTaskModel(nn.Module):
         os.makedirs(path, exist_ok=True)
         self.encoder.save_pretrained(os.path.join(path, "encoder"))
 
-        weights_cpu = {k: v.cpu() for k, v in self.task_class_weights.items()}
         torch.save(
             {
                 "task_heads": self.task_heads.state_dict(),
                 "task_num_labels": self.task_num_labels,
                 "task_label2id": self.task_label2id,
                 "task_id2label": self.task_id2label,
-                "use_mean_pooling": self.use_mean_pooling,
-                "label_smoothing": self.label_smoothing,
-                "task_class_weights": weights_cpu,
+                "head_config": asdict(self._head_config),
+                "loss_config": asdict(self._loss_config),
+                "pooling": self._pooling,
+                "class_weights": self.task_loss.state_dict(),
             },
             os.path.join(path, "task_heads.pt"),
         )
 
     @classmethod
     def from_pretrained(cls, path: str) -> "_MultiTaskModel":
-        config = torch.load(os.path.join(path, "task_heads.pt"), map_location="cpu")
+        data = torch.load(os.path.join(path, "task_heads.pt"), map_location="cpu")
         model = cls(
             model_name=os.path.join(path, "encoder"),
-            task_num_labels=config["task_num_labels"],
-            task_label2id=config["task_label2id"],
-            task_id2label=config["task_id2label"],
-            use_mean_pooling=config.get("use_mean_pooling", True),
-            label_smoothing=config.get("label_smoothing", 0.1),
+            task_num_labels=data["task_num_labels"],
+            task_label2id=data["task_label2id"],
+            task_id2label=data["task_id2label"],
+            head_config=HeadConfig(**data.get("head_config", {})),
+            loss_config=LossConfig(**data.get("loss_config", {})),
+            pooling=data.get("pooling", "mean"),
         )
-        model.task_heads.load_state_dict(config["task_heads"])
-        if "task_class_weights" in config:
-            model.task_class_weights = config["task_class_weights"]
+        model.task_heads.load_state_dict(data["task_heads"])
+        if "class_weights" in data:
+            model.task_loss.load_state_dict(data["class_weights"])
         return model
 
 
 class _TaskGroupedSampler:
     """Sampler ensuring each batch contains samples from a single task."""
 
-    def __init__(self, dataset: Dataset, batch_size: int, shuffle: bool = True) -> None:
+    def __init__(
+        self,
+        dataset: Dataset,
+        batch_size: int,
+        shuffle: bool = True,
+        sampling: str = "proportional",
+    ) -> None:
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.sampling = sampling
         self.task_indices: dict[str, list[int]] = defaultdict(list)
 
         for idx in range(len(dataset)):
@@ -188,22 +163,42 @@ class _TaskGroupedSampler:
 
     def __iter__(self):
         batches = []
-        for indices in self.task_indices.values():
-            idx_copy = indices.copy()
+        task_samples = self._get_task_samples()
+
+        for task, indices in task_samples.items():
             if self.shuffle:
-                random.shuffle(idx_copy)
-            for i in range(0, len(idx_copy), self.batch_size):
-                batches.append(idx_copy[i : i + self.batch_size])
+                random.shuffle(indices)
+            for i in range(0, len(indices), self.batch_size):
+                batches.append(indices[i : i + self.batch_size])
 
         if self.shuffle:
             random.shuffle(batches)
-
         yield from batches
 
+    def _get_task_samples(self) -> dict[str, list[int]]:
+        if self.sampling == "proportional":
+            return {t: list(idx) for t, idx in self.task_indices.items()}
+
+        counts = {t: len(idx) for t, idx in self.task_indices.items()}
+        if self.sampling == "equal":
+            target = max(counts.values())
+        else:  # sqrt
+            target = int(max(counts.values()) ** 0.5 * min(counts.values()) ** 0.5)
+
+        result = {}
+        for task, indices in self.task_indices.items():
+            if len(indices) >= target:
+                result[task] = indices[:target]
+            else:
+                repeats = (target // len(indices)) + 1
+                result[task] = (indices * repeats)[:target]
+        return result
+
     def __len__(self) -> int:
+        samples = self._get_task_samples()
         return sum(
             (len(idx) + self.batch_size - 1) // self.batch_size
-            for idx in self.task_indices.values()
+            for idx in samples.values()
         )
 
 
@@ -225,7 +220,11 @@ class _MultiTaskCollator:
 
 
 class _MultiTaskTrainer(Trainer):
-    """Trainer with task-grouped batching."""
+    """Trainer with task-grouped batching and configurable sampling."""
+
+    def __init__(self, *args, task_sampling: str = "proportional", **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.task_sampling = task_sampling
 
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         labels = inputs.pop("labels")
@@ -242,7 +241,9 @@ class _MultiTaskTrainer(Trainer):
     def _get_dataloader(self, dataset: Dataset, batch_size: int, shuffle: bool):
         from torch.utils.data import DataLoader
 
-        sampler = _TaskGroupedSampler(dataset, batch_size, shuffle)
+        sampler = _TaskGroupedSampler(
+            dataset, batch_size, shuffle, self.task_sampling
+        )
         return DataLoader(
             dataset,
             batch_sampler=sampler,
@@ -272,9 +273,15 @@ class MultiheadClassifier(BaseClassifier):
     the underlying encoder for efficient multi-task learning.
     """
 
-    def __init__(self, config: TrainConfig | None = None) -> None:
+    def __init__(self, config: MultiheadConfig | dict | None = None) -> None:
         super().__init__(config)
-        self._cfg: TrainConfig = {**DEFAULT_CONFIG, **(config or {})}
+        if config is None:
+            self._cfg = DEFAULT_CONFIG
+        elif isinstance(config, dict):
+            self._cfg = MultiheadConfig.from_dict(config)
+        else:
+            self._cfg = config
+
         self._model: _MultiTaskModel | None = None
         self._tokenizer = None
         self._label_maps: dict[str, dict[str, int]] = {}
@@ -293,18 +300,19 @@ class MultiheadClassifier(BaseClassifier):
         datasets, task_num_labels = self._prepare_datasets(samples)
         self._task_num_labels = task_num_labels
 
-        self._tokenizer = AutoTokenizer.from_pretrained(self._cfg["model_name"])
+        cfg = self._cfg
+        self._tokenizer = AutoTokenizer.from_pretrained(cfg.training.model_name)
         self._model = _MultiTaskModel(
-            model_name=self._cfg["model_name"],
+            model_name=cfg.training.model_name,
             task_num_labels=task_num_labels,
             task_label2id=self._label_maps,
             task_id2label=self._id_maps,
-            dropout_rate=self._cfg["dropout_rate"],
-            use_mean_pooling=self._cfg["use_mean_pooling"],
-            label_smoothing=self._cfg["label_smoothing"],
+            head_config=cfg.head,
+            loss_config=cfg.loss,
+            pooling=cfg.pooling,
         )
 
-        if self._cfg["use_class_weights"]:
+        if cfg.loss.use_class_weights:
             weights = self._compute_class_weights(datasets["train"], task_num_labels)
             self._model.set_class_weights(weights)
 
@@ -313,7 +321,7 @@ class MultiheadClassifier(BaseClassifier):
                 x["text"],
                 padding="max_length",
                 truncation=True,
-                max_length=self._cfg["max_length"],
+                max_length=cfg.training.max_length,
             ),
             batched=True,
             remove_columns=["text"],
@@ -321,12 +329,12 @@ class MultiheadClassifier(BaseClassifier):
 
         collator = _MultiTaskCollator(self._tokenizer, task_num_labels)
 
-        if self._cfg["freeze_epochs"] > 0:
+        if cfg.encoder.freeze_epochs > 0:
             self._train_phase(
                 tokenized,
                 collator,
-                epochs=self._cfg["freeze_epochs"],
-                lr=1e-3,
+                epochs=cfg.encoder.freeze_epochs,
+                lr=cfg.training.learning_rate * 10,
                 phase_name="heads-only",
                 freeze_encoder=True,
             )
@@ -334,8 +342,8 @@ class MultiheadClassifier(BaseClassifier):
         self._train_phase(
             tokenized,
             collator,
-            epochs=self._cfg["epochs"],
-            lr=self._cfg["learning_rate"],
+            epochs=cfg.training.epochs,
+            lr=cfg.training.learning_rate,
             phase_name="full",
             freeze_encoder=False,
         )
@@ -353,26 +361,31 @@ class MultiheadClassifier(BaseClassifier):
         freeze_encoder: bool,
     ) -> None:
         console.print(f"\n[bold cyan]Phase: {phase_name}[/bold cyan]")
+        cfg = self._cfg
 
         if freeze_encoder:
             self._model.freeze_encoder()
         else:
-            self._model.unfreeze_encoder(num_layers=4)
+            self._model.unfreeze_encoder(num_layers=cfg.encoder.unfreeze_layers)
+
+        encoder_lr = lr * cfg.encoder.lr_multiplier if not freeze_encoder else lr
 
         args = TrainingArguments(
-            output_dir=os.path.join(self._cfg["output_dir"], phase_name),
+            output_dir=os.path.join(cfg.training.output_dir, phase_name),
             num_train_epochs=epochs,
-            per_device_train_batch_size=self._cfg["batch_size"],
-            per_device_eval_batch_size=self._cfg["batch_size"] * 2,
-            learning_rate=lr,
-            weight_decay=self._cfg["weight_decay"],
-            warmup_ratio=self._cfg["warmup_ratio"],
+            per_device_train_batch_size=cfg.training.batch_size,
+            per_device_eval_batch_size=cfg.training.batch_size * 2,
+            learning_rate=encoder_lr if freeze_encoder else lr,
+            weight_decay=cfg.training.weight_decay,
+            warmup_ratio=cfg.training.warmup_ratio,
+            gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
+            max_grad_norm=cfg.training.max_grad_norm,
             lr_scheduler_type="cosine",
             eval_strategy="epoch",
             save_strategy="epoch",
             load_best_model_at_end=True,
-            metric_for_best_model="accuracy",
-            greater_is_better=True,
+            metric_for_best_model=cfg.eval.metric,
+            greater_is_better=(cfg.eval.metric != "loss"),
             save_total_limit=2,
             logging_steps=50,
             remove_unused_columns=False,
@@ -381,8 +394,13 @@ class MultiheadClassifier(BaseClassifier):
         )
 
         callbacks = []
-        if self._cfg["patience"] > 0:
-            callbacks.append(EarlyStoppingCallback(self._cfg["patience"]))
+        if cfg.eval.patience > 0:
+            callbacks.append(
+                EarlyStoppingCallback(
+                    early_stopping_patience=cfg.eval.patience,
+                    early_stopping_threshold=cfg.eval.min_delta,
+                )
+            )
 
         trainer = _MultiTaskTrainer(
             model=self._model,
@@ -392,6 +410,7 @@ class MultiheadClassifier(BaseClassifier):
             data_collator=collator,
             compute_metrics=self._compute_metrics,
             callbacks=callbacks,
+            task_sampling=cfg.task_sampling,
         )
 
         trainer.train()
@@ -416,7 +435,7 @@ class MultiheadClassifier(BaseClassifier):
             texts,
             padding=True,
             truncation=True,
-            max_length=self._cfg["max_length"],
+            max_length=self._cfg.training.max_length,
             return_tensors="pt",
         ).to(device)
 
@@ -485,29 +504,30 @@ class MultiheadClassifier(BaseClassifier):
                     })
 
         stratify_keys = [f"{r['task']}_{r['label']}" for r in rows]
+        cfg = self._cfg
 
         try:
             train, test = train_test_split(
                 rows,
-                test_size=self._cfg["test_size"],
+                test_size=cfg.training.test_size,
                 random_state=42,
                 stratify=stratify_keys,
             )
             train_keys = [f"{r['task']}_{r['label']}" for r in train]
             train, val = train_test_split(
                 train,
-                test_size=self._cfg["val_size"],
+                test_size=cfg.training.val_size,
                 random_state=42,
                 stratify=train_keys,
             )
         except ValueError:
             task_keys = [r["task"] for r in rows]
             train, test = train_test_split(
-                rows, test_size=self._cfg["test_size"], random_state=42, stratify=task_keys
+                rows, test_size=cfg.training.test_size, random_state=42, stratify=task_keys
             )
             train_keys = [r["task"] for r in train]
             train, val = train_test_split(
-                train, test_size=self._cfg["val_size"], random_state=42, stratify=train_keys
+                train, test_size=cfg.training.val_size, random_state=42, stratify=train_keys
             )
 
         console.print(

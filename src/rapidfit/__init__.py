@@ -1,12 +1,18 @@
 """RapidFit - Build multi-task classifiers and augment classification datasets."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 from rapidfit.augmenters import BaseAugmenter, LLMAugmenter
 from rapidfit.classifiers import (
     BaseClassifier,
     ClassifierType,
+    EncoderConfig,
+    EvalConfig,
+    HeadConfig,
+    LossConfig,
     MultiheadClassifier,
+    MultiheadConfig,
+    TrainingConfig,
     create_classifier,
 )
 from rapidfit.io import DataSaver
@@ -19,7 +25,6 @@ from rapidfit.types import (
     SeedData,
     TaskResult,
     TaskStats,
-    TrainConfig,
     WriteMode,
 )
 
@@ -30,15 +35,20 @@ __all__ = [
     "ClassifierConfig",
     "ClassifierType",
     "DataSaver",
+    "EncoderConfig",
+    "EvalConfig",
+    "HeadConfig",
     "LLMAugmenter",
+    "LossConfig",
     "MultiheadClassifier",
+    "MultiheadConfig",
     "Prediction",
     "Sample",
     "SaveFormat",
     "SeedData",
     "TaskResult",
     "TaskStats",
-    "TrainConfig",
+    "TrainingConfig",
     "WriteMode",
     "create_classifier",
 ]
