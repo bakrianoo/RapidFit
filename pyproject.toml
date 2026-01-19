@@ -34,6 +34,12 @@ dependencies = [
     "accelerate>=0.26.0",
 ]
 
+[project.optional-dependencies]
+export = [
+    "onnx>=1.15.0",
+    "onnxruntime>=1.20.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/bakrianoo/RapidFit"
 Repository = "https://github.com/bakrianoo/RapidFit"

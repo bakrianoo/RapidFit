@@ -1,6 +1,6 @@
 """RapidFit - Build multi-task classifiers and augment classification datasets."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 from rapidfit.augmenters import BaseAugmenter, LLMAugmenter
 from rapidfit.classifiers import (
@@ -14,6 +14,8 @@ from rapidfit.classifiers import (
     MultiheadConfig,
     TrainingConfig,
     create_classifier,
+    export_to_onnx,
+    quantize_onnx,
 )
 from rapidfit.io import DataSaver
 from rapidfit.types import (
@@ -51,4 +53,6 @@ __all__ = [
     "TrainingConfig",
     "WriteMode",
     "create_classifier",
+    "export_to_onnx",
+    "quantize_onnx",
 ]

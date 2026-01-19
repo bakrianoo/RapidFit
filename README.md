@@ -93,6 +93,21 @@ classifier.predict(["Great product!"], task="sentiment")
 classifier.predict_all_tasks(["Great product!"])
 ```
 
+## Production Deployment
+
+Export to ONNX for faster inference:
+
+```bash
+pip install rapidfit[export]
+```
+
+```python
+# Export with INT8 quantization (3-4x faster, 4x smaller)
+classifier.export_onnx("./onnx_models", quantize=True)
+```
+
+For deployment strategies, ONNX Runtime usage, and performance optimization, see [Inference Guide](docs/INFERENCE_GUIDE.md).
+
 ## Extend It
 
 Build custom augmenters or classifiers by extending the base classes:

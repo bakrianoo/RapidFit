@@ -12,6 +12,7 @@ from rapidfit.classifiers.config import (
     MultiheadConfig,
     TrainingConfig,
 )
+from rapidfit.classifiers.export import export_to_onnx, quantize_onnx
 from rapidfit.classifiers.multihead import MultiheadClassifier
 from rapidfit.types import ClassifierConfig
 
@@ -61,4 +62,6 @@ __all__ = [
     "MultiheadConfig",
     "TrainingConfig",
     "create_classifier",
+    "export_to_onnx",
+    "quantize_onnx",
 ]

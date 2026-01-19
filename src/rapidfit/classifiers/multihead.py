@@ -591,3 +591,42 @@ class MultiheadClassifier(BaseClassifier):
         if task not in self._label_maps:
             raise ValueError(f"Unknown task: {task}")
         return list(self._label_maps[task].keys())
+
+    def export_onnx(
+        self,
+        path: str | Path,
+        tasks: list[str] | None = None,
+        quantize: bool = False,
+    ) -> dict[str, Path]:
+        """
+        Export model to ONNX format.
+
+        Args:
+            path: Output directory.
+            tasks: Tasks to export. Defaults to all tasks.
+            quantize: Apply INT8 quantization after export.
+
+        Returns:
+            Dict mapping task names to ONNX file paths.
+        """
+        if not self._is_trained:
+            raise RuntimeError("Model must be trained before export")
+
+        from rapidfit.classifiers.export import export_to_onnx, quantize_onnx
+
+        tasks = tasks or list(self._model.task_heads.keys())
+        results = {}
+
+        for task in tasks:
+            onnx_path = export_to_onnx(
+                self._model,
+                task,
+                path,
+                max_length=self._cfg.training.max_length,
+            )
+            if quantize:
+                onnx_path = quantize_onnx(onnx_path)
+            results[task] = onnx_path
+            console.print(f"[green]Exported {task} → {onnx_path}[/green]")
+
+        return results
