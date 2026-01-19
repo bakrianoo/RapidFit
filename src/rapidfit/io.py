@@ -59,6 +59,15 @@ class DataSaver:
                 writer.writeheader()
                 writer.writerows(samples)
 
+    def load_all(self) -> dict[str, list[Sample]]:
+        """Load all task files from the save directory."""
+        data = {}
+        ext = f".{self._format.value}"
+        for path in self._path.glob(f"*{ext}"):
+            task = path.stem
+            data[task] = self._read(path)
+        return data
+
     def _read(self, path: Path) -> list[Sample]:
         """Read samples from file."""
         if self._format == SaveFormat.JSON:

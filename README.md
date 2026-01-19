@@ -57,6 +57,14 @@ classifier.train(augmented)
 classifier.save("./model")
 ```
 
+Or train directly from a saved data directory:
+
+```python
+classifier = MultiheadClassifier()
+classifier.train(data_save_dir="./saved")
+classifier.save("./model")
+```
+
 Customize training:
 
 ```python

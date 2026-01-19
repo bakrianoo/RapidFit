@@ -288,9 +288,13 @@ class MultiheadClassifier(BaseClassifier):
         self._id_maps: dict[str, dict[int, str]] = {}
         self._task_num_labels: dict[str, int] = {}
 
-    def train(self, data: SeedData | AugmentResult) -> None:
+    def train(
+        self,
+        data: SeedData | AugmentResult | None = None,
+        data_save_dir: str | None = None,
+    ) -> None:
         """Train multihead classifier on data."""
-        samples = self._resolve_data(data)
+        samples = self._resolve_data(data, data_save_dir)
         if not samples:
             raise ValueError("No training data provided")
 
