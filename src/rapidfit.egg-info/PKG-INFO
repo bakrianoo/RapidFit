@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: rapidfit
-Version: 0.1.2
+Version: 0.1.3
 Summary: Build multi-task classifiers and augment classification datasets with ease
 Author-email: Abu Bakr Soliman <bakrianoo@gmail.com>
 License-Expression: MIT
@@ -87,17 +87,27 @@ classifier.train(augmented)
 classifier.save("./model")
 ```
 
+Or train directly from a saved data directory:
+
+```python
+classifier = MultiheadClassifier()
+classifier.train(data_save_dir="./saved")
+classifier.save("./model")
+```
+
 Customize training:
 
 ```python
-classifier = MultiheadClassifier({
-    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    "epochs": 10,
-    "freeze_epochs": 3,
-    "learning_rate": 2e-5,
-    "patience": 3,
-})
+from rapidfit import MultiheadConfig, TrainingConfig, LossConfig
+
+config = MultiheadConfig(
+    training=TrainingConfig(epochs=10, learning_rate=2e-5),
+    loss=LossConfig(use_class_weights=True),
+)
+classifier = MultiheadClassifier(config)
 ```
+
+For a complete guide on configuration options and use cases, see [How the Multihead Classifier Works](docs/HOW_MULTIHEAD_CLASSIFIER.md).
 
 ## Predict
 

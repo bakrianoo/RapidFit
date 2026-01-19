@@ -14,7 +14,12 @@ src/rapidfit/augmenters/base.py
 src/rapidfit/augmenters/llm.py
 src/rapidfit/classifiers/__init__.py
 src/rapidfit/classifiers/base.py
+src/rapidfit/classifiers/config.py
 src/rapidfit/classifiers/multihead.py
+src/rapidfit/classifiers/components/__init__.py
+src/rapidfit/classifiers/components/heads.py
+src/rapidfit/classifiers/components/losses.py
+src/rapidfit/classifiers/components/pooling.py
 src/rapidfit/clients/__init__.py
 src/rapidfit/clients/chat.py
 src/rapidfit/prompts/__init__.py
