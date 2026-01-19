@@ -1,0 +1,9 @@
+LICENSE
+README.md
+pyproject.toml
+src/rapidfit/__init__.py
+src/rapidfit.egg-info/PKG-INFO
+src/rapidfit.egg-info/SOURCES.txt
+src/rapidfit.egg-info/dependency_links.txt
+src/rapidfit.egg-info/requires.txt
+src/rapidfit.egg-info/top_level.txt

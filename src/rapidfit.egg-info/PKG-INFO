@@ -1,0 +1,58 @@
+Metadata-Version: 2.4
+Name: rapidfit
+Version: 0.1.0
+Summary: Build multi-task classifiers and augment classification datasets with ease
+Author-email: Abu Bakr Soliman <bakrianoo@myemail.com>
+License: MIT
+Project-URL: Homepage, https://github.com/bakrianoo/RapidFit
+Project-URL: Repository, https://github.com/bakrianoo/RapidFit
+Keywords: machine-learning,transformers,multi-task-learning,classification,data-augmentation,nlp
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: openai>=2.15.0
+Requires-Dist: transformers>=4.57.6
+Requires-Dist: datasets>=4.5.0
+Requires-Dist: scikit-learn>=1.7.0
+Requires-Dist: json-repair>=0.55.0
+Dynamic: license-file
+
+# RapidFit
+
+Build multi-task classifiers and augment classification datasets with ease.
+
+## Features
+
+- **Multi-task Classification**: Train classifiers that handle multiple classification tasks simultaneously
+- **Data Augmentation**: Expand and enhance your classification datasets
+
+## Installation
+
+```bash
+pip install rapidfit
+```
+
+## Development Installation
+
+```bash
+pip install -e .
+```
+
+## Usage
+
+```python
+import rapidfit
+```
+
+## License
+
+MIT
