@@ -15,6 +15,7 @@ src/rapidfit/augmenters/llm.py
 src/rapidfit/classifiers/__init__.py
 src/rapidfit/classifiers/base.py
 src/rapidfit/classifiers/config.py
+src/rapidfit/classifiers/export.py
 src/rapidfit/classifiers/multihead.py
 src/rapidfit/classifiers/components/__init__.py
 src/rapidfit/classifiers/components/heads.py

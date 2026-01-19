@@ -1,6 +1,6 @@
 """RapidFit - Build multi-task classifiers and augment classification datasets."""
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 from rapidfit.augmenters import BaseAugmenter, LLMAugmenter
 from rapidfit.classifiers import (

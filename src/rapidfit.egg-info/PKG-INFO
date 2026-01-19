@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: rapidfit
-Version: 0.1.3
+Version: 0.1.4
 Summary: Build multi-task classifiers and augment classification datasets with ease
 Author-email: Abu Bakr Soliman <bakrianoo@gmail.com>
 License-Expression: MIT
@@ -26,6 +26,9 @@ Requires-Dist: transformers>=4.57.3
 Requires-Dist: datasets>=4.2.0
 Requires-Dist: scikit-learn>=1.6.1
 Requires-Dist: accelerate>=0.26.0
+Provides-Extra: export
+Requires-Dist: onnx>=1.15.0; extra == "export"
+Requires-Dist: onnxruntime>=1.20.0; extra == "export"
 Dynamic: license-file
 
 # RapidFit
@@ -122,6 +125,21 @@ classifier.predict(["Great product!"], task="sentiment")
 # All tasks
 classifier.predict_all_tasks(["Great product!"])
 ```
+
+## Production Deployment
+
+Export to ONNX for faster inference:
+
+```bash
+pip install rapidfit[export]
+```
+
+```python
+# Export with INT8 quantization (3-4x faster, 4x smaller)
+classifier.export_onnx("./onnx_models", quantize=True)
+```
+
+For deployment strategies, ONNX Runtime usage, and performance optimization, see [Inference Guide](docs/INFERENCE_GUIDE.md).
 
 ## Extend It
 
