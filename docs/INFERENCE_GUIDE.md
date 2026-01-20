@@ -109,8 +109,10 @@ classifier.load("./my_model")
 # Export all tasks
 classifier.export_onnx("./onnx_models")
 # Creates: ./onnx_models/sentiment.onnx
+#          ./onnx_models/sentiment_config.json
 #          ./onnx_models/intent.onnx
-#          ./onnx_models/emotion.onnx
+#          ./onnx_models/intent_config.json
+#          ...
 
 # Export specific tasks only
 classifier.export_onnx("./onnx_models", tasks=["sentiment"])
@@ -135,33 +137,29 @@ onnx_models/
 ### Run with ONNX Runtime
 
 ```python
+import json
+import numpy as np
 import onnxruntime as ort
 from transformers import AutoTokenizer
 
-# Load tokenizer (same one used during training)
-tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
+# Load tokenizer and config
+tokenizer = AutoTokenizer.from_pretrained("./onnx_models/tokenizer")
+config = json.load(open("./onnx_models/sentiment_config.json"))
+id2label = {int(k): v for k, v in config["id2label"].items()}
 
 # Load ONNX model
 session = ort.InferenceSession("./onnx_models/sentiment.onnx")
 
-# Prepare input
+# Run inference
 text = "I love this product!"
 inputs = tokenizer(text, return_tensors="np", padding=True, truncation=True)
-
-# Run inference
-outputs = session.run(
-    None, 
-    {
-        "input_ids": inputs["input_ids"],
-        "attention_mask": inputs["attention_mask"],
-    }
-)
+logits = session.run(None, dict(inputs))[0]
 
 # Get prediction
-import numpy as np
-logits = outputs[0]
-predicted_class = np.argmax(logits, axis=-1)[0]
-confidence = np.exp(logits) / np.exp(logits).sum(axis=-1, keepdims=True)
+probs = np.exp(logits) / np.exp(logits).sum(axis=-1, keepdims=True)
+predicted_id = np.argmax(probs, axis=-1)[0]
+label = id2label[predicted_id]
+confidence = probs[0, predicted_id]
 ```
 
 ### Batch Inference

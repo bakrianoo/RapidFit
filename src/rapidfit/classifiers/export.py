@@ -1,6 +1,6 @@
 """ONNX export and quantization utilities."""
 
-import os
+import json
 from pathlib import Path
 
 import torch
@@ -105,6 +105,12 @@ def export_to_onnx(
     else:
         onnx_model = onnx.load(str(onnx_path))
         onnx.checker.check_model(onnx_model)
+
+    config_path = output_path / f"{task}_config.json"
+    config_path.write_text(json.dumps({
+        "id2label": {str(k): v for k, v in model.task_id2label[task].items()},
+        "label2id": model.task_label2id[task],
+    }, indent=2))
 
     return onnx_path
 
