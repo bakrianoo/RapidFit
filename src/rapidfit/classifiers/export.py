@@ -130,8 +130,8 @@ def quantize_onnx(
         Path to the quantized model.
     """
     try:
+        import onnx
         from onnxruntime.quantization import quantize_dynamic, QuantType
-        from onnxruntime.quantization.shape_inference import quant_pre_process
     except ImportError:
         raise ImportError("Install export dependencies: pip install rapidfit[export]")
 
@@ -141,8 +141,11 @@ def quantize_onnx(
     else:
         output_path = Path(output_path)
 
+    # Use standard ONNX shape inference (handles dynamic axes better)
     preprocessed = onnx_path.with_stem(f"{onnx_path.stem}_prep")
-    quant_pre_process(str(onnx_path), str(preprocessed))
+    model = onnx.load(str(onnx_path))
+    model = onnx.shape_inference.infer_shapes(model)
+    onnx.save(model, str(preprocessed))
 
     quantize_dynamic(
         model_input=str(preprocessed),
