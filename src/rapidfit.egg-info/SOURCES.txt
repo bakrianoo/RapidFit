@@ -18,6 +18,7 @@ src/rapidfit/classifiers/config.py
 src/rapidfit/classifiers/export.py
 src/rapidfit/classifiers/multihead.py
 src/rapidfit/classifiers/components/__init__.py
+src/rapidfit/classifiers/components/analysis.py
 src/rapidfit/classifiers/components/heads.py
 src/rapidfit/classifiers/components/losses.py
 src/rapidfit/classifiers/components/pooling.py

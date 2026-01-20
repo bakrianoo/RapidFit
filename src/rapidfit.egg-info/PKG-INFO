@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: rapidfit
-Version: 0.1.5
+Version: 0.1.6
 Summary: Build multi-task classifiers and augment classification datasets with ease
 Author-email: Abu Bakr Soliman <bakrianoo@gmail.com>
 License-Expression: MIT
@@ -126,6 +126,17 @@ classifier.predict(["Great product!"], task="sentiment")
 # All tasks
 classifier.predict_all_tasks(["Great product!"])
 ```
+
+## Error Analysis
+
+Understand where your model fails before deploying:
+
+```python
+result = classifier.analyze()       # Analyze test set
+classifier.display(result)          # Show confusion matrix, metrics, errors
+```
+
+Get per-class precision/recall, confusion matrices, and the actual samples that were misclassified. See [Error Analysis Guide](docs/ERROR_ANALYSIS_GUIDE.md) for details.
 
 ## Production Deployment
 
