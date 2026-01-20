@@ -139,7 +139,7 @@ import onnxruntime as ort
 from transformers import AutoTokenizer
 
 # Load tokenizer (same one used during training)
-tokenizer = AutoTokenizer.from_pretrained("./my_model/encoder")
+tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
 
 # Load ONNX model
 session = ort.InferenceSession("./onnx_models/sentiment.onnx")
@@ -343,7 +343,7 @@ import numpy as np
 app = FastAPI()
 
 # Load once at startup
-tokenizer = AutoTokenizer.from_pretrained("./model/encoder")
+tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
 session = ort.InferenceSession("./onnx/sentiment_int8.onnx")
 id2label = {0: "negative", 1: "neutral", 2: "positive"}
 
