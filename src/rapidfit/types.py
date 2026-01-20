@@ -66,6 +66,36 @@ class Prediction(TypedDict):
     confidence: float
 
 
+class ErrorSample(TypedDict):
+    """A misclassified sample with details."""
+    text: str
+    true_label: str
+    predicted_label: str
+    confidence: float
+
+
+class ClassMetrics(TypedDict):
+    """Per-class performance metrics."""
+    precision: float
+    recall: float
+    f1: float
+    support: int
+
+
+class TaskAnalysis(TypedDict):
+    """Analysis results for a single task."""
+    accuracy: float
+    class_metrics: dict[str, ClassMetrics]
+    confusion_matrix: list[list[int]]
+    labels: list[str]
+    errors: list[ErrorSample]
+
+
+class AnalysisResult(TypedDict):
+    """Complete analysis across all tasks."""
+    tasks: dict[str, TaskAnalysis]
+
+
 SeedData = dict[str, list[Sample]]
 """Mapping of task names to lists of samples."""
 

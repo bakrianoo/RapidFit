@@ -93,6 +93,17 @@ classifier.predict(["Great product!"], task="sentiment")
 classifier.predict_all_tasks(["Great product!"])
 ```
 
+## Error Analysis
+
+Understand where your model fails before deploying:
+
+```python
+result = classifier.analyze()       # Analyze test set
+classifier.display(result)          # Show confusion matrix, metrics, errors
+```
+
+Get per-class precision/recall, confusion matrices, and the actual samples that were misclassified. See [Error Analysis Guide](docs/ERROR_ANALYSIS_GUIDE.md) for details.
+
 ## Production Deployment
 
 Export to ONNX for faster inference:

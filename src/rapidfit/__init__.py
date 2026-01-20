@@ -19,25 +19,32 @@ from rapidfit.classifiers import (
 )
 from rapidfit.io import DataSaver
 from rapidfit.types import (
+    AnalysisResult,
     AugmentResult,
     ClassifierConfig,
+    ClassMetrics,
+    ErrorSample,
     Prediction,
     Sample,
     SaveFormat,
     SeedData,
+    TaskAnalysis,
     TaskResult,
     TaskStats,
     WriteMode,
 )
 
 __all__ = [
+    "AnalysisResult",
     "AugmentResult",
     "BaseAugmenter",
     "BaseClassifier",
     "ClassifierConfig",
     "ClassifierType",
+    "ClassMetrics",
     "DataSaver",
     "EncoderConfig",
+    "ErrorSample",
     "EvalConfig",
     "HeadConfig",
     "LLMAugmenter",
@@ -48,6 +55,7 @@ __all__ = [
     "Sample",
     "SaveFormat",
     "SeedData",
+    "TaskAnalysis",
     "TaskResult",
     "TaskStats",
     "TrainingConfig",

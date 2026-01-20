@@ -23,14 +23,14 @@ from transformers import (
 )
 
 from rapidfit.classifiers.base import BaseClassifier
-from rapidfit.classifiers.components import Pooler, TaskHeads, TaskLoss
+from rapidfit.classifiers.components import Pooler, TaskHeads, TaskLoss, compute_task_analysis
 from rapidfit.classifiers.config import (
     DEFAULT_CONFIG,
     HeadConfig,
     LossConfig,
     MultiheadConfig,
 )
-from rapidfit.types import AugmentResult, Prediction, SeedData
+from rapidfit.types import AnalysisResult, AugmentResult, Prediction, SeedData
 
 console = Console()
 
@@ -287,6 +287,7 @@ class MultiheadClassifier(BaseClassifier):
         self._label_maps: dict[str, dict[str, int]] = {}
         self._id_maps: dict[str, dict[int, str]] = {}
         self._task_num_labels: dict[str, int] = {}
+        self._splits: DatasetDict | None = None
 
     def train(
         self,
@@ -303,6 +304,7 @@ class MultiheadClassifier(BaseClassifier):
 
         datasets, task_num_labels = self._prepare_datasets(samples)
         self._task_num_labels = task_num_labels
+        self._splits = datasets
 
         cfg = self._cfg
         self._tokenizer = AutoTokenizer.from_pretrained(cfg.training.model_name)
@@ -462,6 +464,110 @@ class MultiheadClassifier(BaseClassifier):
     def predict_all_tasks(self, texts: list[str]) -> dict[str, list[Prediction]]:
         """Predict all tasks for given texts."""
         return {task: self.predict(texts, task) for task in self._model.task_heads}
+
+    def analyze(
+        self,
+        split: str = "test",
+        tasks: list[str] | None = None,
+    ) -> AnalysisResult:
+        """
+        Analyze model performance on stored data splits.
+
+        Args:
+            split: Which split to analyze ('train', 'validation', 'test').
+            tasks: Tasks to analyze. Defaults to all tasks.
+
+        Returns:
+            Analysis results with metrics, confusion matrix, and error samples.
+        """
+        if not self._is_trained:
+            raise RuntimeError("Model must be trained before analysis")
+        if self._splits is None:
+            raise RuntimeError("No stored splits available. Train the model first.")
+        if split not in self._splits:
+            raise ValueError(f"Unknown split: {split}")
+
+        dataset = self._splits[split]
+        tasks = tasks or list(self._model.task_heads.keys())
+        result: AnalysisResult = {"tasks": {}}
+
+        for task in tasks:
+            indices = [i for i, item in enumerate(dataset) if item["task"] == task]
+            if not indices:
+                continue
+
+            texts = [dataset[i]["text"] for i in indices]
+            y_true = [dataset[i]["label"] for i in indices]
+            labels = list(self._id_maps[task].values())
+
+            predictions = self.predict(texts, task)
+            y_pred = [self._label_maps[task][p["label"]] for p in predictions]
+            confidences = [p["confidence"] for p in predictions]
+
+            result["tasks"][task] = compute_task_analysis(
+                texts, y_true, y_pred, confidences, labels
+            )
+
+        return result
+
+    def display(self, result: AnalysisResult, max_errors: int = 10) -> None:
+        """
+        Display analysis results in console.
+
+        Args:
+            result: Analysis result from analyze().
+            max_errors: Maximum error samples to show per task.
+        """
+        for task, analysis in result["tasks"].items():
+            console.print(f"\n[bold cyan]Task: {task}[/bold cyan]")
+            console.print(f"Accuracy: {analysis['accuracy']:.2%}")
+
+            # Class metrics table
+            metrics_table = Table(title="Per-Class Metrics")
+            metrics_table.add_column("Label", style="cyan")
+            metrics_table.add_column("Precision", justify="right")
+            metrics_table.add_column("Recall", justify="right")
+            metrics_table.add_column("F1", justify="right")
+            metrics_table.add_column("Support", justify="right")
+
+            for label, m in analysis["class_metrics"].items():
+                metrics_table.add_row(
+                    label,
+                    f"{m['precision']:.2%}",
+                    f"{m['recall']:.2%}",
+                    f"{m['f1']:.2%}",
+                    str(m["support"]),
+                )
+            console.print(metrics_table)
+
+            # Confusion matrix
+            labels = analysis["labels"]
+            matrix = analysis["confusion_matrix"]
+            cm_table = Table(title="Confusion Matrix")
+            cm_table.add_column("", style="bold")
+            for lbl in labels:
+                cm_table.add_column(lbl[:8], justify="right")
+
+            for i, row_label in enumerate(labels):
+                row = [row_label[:8]] + [str(matrix[i][j]) for j in range(len(labels))]
+                cm_table.add_row(*row)
+            console.print(cm_table)
+
+            # Error samples
+            errors = analysis["errors"][:max_errors]
+            if errors:
+                err_table = Table(title=f"Top {len(errors)} Errors (by confidence)")
+                err_table.add_column("Text", max_width=50)
+                err_table.add_column("True", style="green")
+                err_table.add_column("Pred", style="red")
+                err_table.add_column("Conf", justify="right")
+
+                for e in errors:
+                    text = e["text"][:47] + "..." if len(e["text"]) > 50 else e["text"]
+                    err_table.add_row(
+                        text, e["true_label"], e["predicted_label"], f"{e['confidence']:.2%}"
+                    )
+                console.print(err_table)
 
     def save(self, path: str | Path) -> None:
         """Save model to disk."""
