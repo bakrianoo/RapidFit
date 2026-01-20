@@ -597,6 +597,7 @@ class MultiheadClassifier(BaseClassifier):
         path: str | Path,
         tasks: list[str] | None = None,
         quantize: bool = False,
+        external_data: bool | None = None,
     ) -> dict[str, Path]:
         """
         Export model to ONNX format.
@@ -605,6 +606,8 @@ class MultiheadClassifier(BaseClassifier):
             path: Output directory.
             tasks: Tasks to export. Defaults to all tasks.
             quantize: Apply INT8 quantization after export.
+            external_data: Store weights externally for large models (>2GB).
+                           None=auto-detect, True=force, False=disable.
 
         Returns:
             Dict mapping task names to ONNX file paths.
@@ -623,6 +626,7 @@ class MultiheadClassifier(BaseClassifier):
                 task,
                 path,
                 max_length=self._cfg.training.max_length,
+                external_data=external_data,
             )
             if quantize:
                 onnx_path = quantize_onnx(onnx_path)

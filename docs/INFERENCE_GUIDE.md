@@ -116,6 +116,22 @@ classifier.export_onnx("./onnx_models")
 classifier.export_onnx("./onnx_models", tasks=["sentiment"])
 ```
 
+### Large Models (>2GB)
+
+Models like `xlm-roberta-large` exceed ONNX's 2GB limit. RapidFit auto-detects this and stores weights externally:
+
+```python
+classifier.export_onnx("./onnx_models")                    # auto-detect
+classifier.export_onnx("./onnx_models", external_data=True)  # force external
+```
+
+Output with external data:
+```
+onnx_models/
+├── sentiment.onnx
+└── sentiment_weights.bin   # keep both files together
+```
+
 ### Run with ONNX Runtime
 
 ```python

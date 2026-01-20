@@ -38,6 +38,7 @@ dependencies = [
 export = [
     "onnx>=1.15.0",
     "onnxruntime>=1.20.0",
+    "onnxscript>=0.5.2",
 ]
 
 [project.urls]

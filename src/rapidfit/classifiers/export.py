@@ -29,7 +29,8 @@ def export_to_onnx(
     task: str,
     output_path: str | Path,
     max_length: int = 128,
-    opset_version: int = 14,
+    opset_version: int = 17,
+    external_data: bool | None = None,
 ) -> Path:
     """
     Export a single task to ONNX format.
@@ -40,6 +41,8 @@ def export_to_onnx(
         output_path: Directory to save the ONNX file.
         max_length: Maximum sequence length for dummy input.
         opset_version: ONNX opset version.
+        external_data: Store weights externally for large models (>2GB).
+                       None=auto-detect, True=force, False=disable.
 
     Returns:
         Path to the exported ONNX file.
@@ -69,6 +72,10 @@ def export_to_onnx(
 
     onnx_path = output_path / f"{task}.onnx"
 
+    if external_data is None:
+        param_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
+        external_data = param_bytes > 2 * 1024**3
+
     with torch.no_grad():
         torch.onnx.export(
             inference_model,
@@ -85,8 +92,19 @@ def export_to_onnx(
             do_constant_folding=True,
         )
 
-    onnx_model = onnx.load(str(onnx_path))
-    onnx.checker.check_model(onnx_model)
+    if external_data:
+        onnx_model = onnx.load(str(onnx_path), load_external_data=False)
+        onnx.save(
+            onnx_model,
+            str(onnx_path),
+            save_as_external_data=True,
+            location=f"{task}_weights.bin",
+            all_tensors_to_one_file=True,
+        )
+        onnx.checker.check_model(str(onnx_path))
+    else:
+        onnx_model = onnx.load(str(onnx_path))
+        onnx.checker.check_model(onnx_model)
 
     return onnx_path
 
