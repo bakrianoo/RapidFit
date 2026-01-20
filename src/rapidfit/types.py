@@ -96,6 +96,16 @@ class AnalysisResult(TypedDict):
     tasks: dict[str, TaskAnalysis]
 
 
+class RefinementInstruction(TypedDict):
+    """Refinement instructions for a weak class."""
+    confused_with: list[str]
+    differentiators: list[str]
+    emphasize: list[str]
+    avoid: list[str]
+    languages: dict[str, float]
+    length: LengthStats
+
+
 SeedData = dict[str, list[Sample]]
 """Mapping of task names to lists of samples."""
 

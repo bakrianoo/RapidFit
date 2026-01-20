@@ -2,7 +2,7 @@
 
 __version__ = "0.1.4"
 
-from rapidfit.augmenters import BaseAugmenter, LLMAugmenter
+from rapidfit.augmenters import BaseAugmenter, LLMAugmenter, LLMRefiner
 from rapidfit.classifiers import (
     BaseClassifier,
     ClassifierType,
@@ -25,6 +25,7 @@ from rapidfit.types import (
     ClassMetrics,
     ErrorSample,
     Prediction,
+    RefinementInstruction,
     Sample,
     SaveFormat,
     SeedData,
@@ -48,10 +49,12 @@ __all__ = [
     "EvalConfig",
     "HeadConfig",
     "LLMAugmenter",
+    "LLMRefiner",
     "LossConfig",
     "MultiheadClassifier",
     "MultiheadConfig",
     "Prediction",
+    "RefinementInstruction",
     "Sample",
     "SaveFormat",
     "SeedData",

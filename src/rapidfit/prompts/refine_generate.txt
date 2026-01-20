@@ -1,0 +1,23 @@
+Generate {count} samples for "{task_name}" class "{label}" that are clearly distinguishable from confused classes.
+
+Often confused with: {confused_with}
+
+Key differences to emphasize:
+{differentiators}
+
+Must exhibit:
+{emphasize}
+
+Avoid these patterns (cause confusion):
+{avoid}
+
+Languages: {languages}
+Length: {length_min}-{length_max} chars
+
+Error examples to learn from (these were misclassified):
+{error_examples}
+
+Generate samples that would NOT be confused with {confused_with}.
+Vary tone, context, vocabulary. Be creative but precise.
+
+Return ONLY a JSON array of {count} unique strings.

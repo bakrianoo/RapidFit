@@ -1,0 +1,29 @@
+Analyze classification errors to create targeted refinement instructions.
+
+Task: {task_name}
+
+Weak classes (need more training data):
+{weak_classes}
+
+Confusion patterns (true_label -> predicted_label):
+{confusion_pairs}
+
+Error samples:
+{error_samples}
+
+For each weak class, provide:
+1. What distinguishes it from classes it's confused with
+2. Characteristics to emphasize in new samples
+3. Patterns to avoid (cause misclassification)
+
+Return JSON:
+{{
+  "class_label": {{
+    "confused_with": ["class1", "class2"],
+    "differentiators": ["key difference 1", "key difference 2"],
+    "emphasize": ["trait to highlight"],
+    "avoid": ["pattern causing confusion"],
+    "languages": {{"en": 0.5, "ar": 0.3}},
+    "length": {{"min": 10, "max": 200}}
+  }}
+}}
