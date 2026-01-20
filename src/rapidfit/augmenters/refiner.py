@@ -143,6 +143,7 @@ class LLMRefiner:
     ) -> AugmentResult:
         """Generate refined samples for weak classes."""
         result: AugmentResult = {}
+        processed_tasks: set[str] = set()
 
         with Progress(
             SpinnerColumn(),
@@ -156,6 +157,7 @@ class LLMRefiner:
                 if not class_instructions:
                     continue
 
+                processed_tasks.add(task_name)
                 base_samples = list(existing_data.get(task_name, []))
                 existing_texts = {s["text"] for s in base_samples}
                 task_errors = analysis["tasks"][task_name]["errors"]
@@ -186,6 +188,15 @@ class LLMRefiner:
                 result[task_name] = {
                     "path": path,
                     "stats": self._compute_stats(base_samples),
+                }
+
+        # Copy unprocessed tasks to ensure complete dataset
+        for task_name, samples in existing_data.items():
+            if task_name not in processed_tasks and samples:
+                path = self._saver.save_task(task_name, samples)
+                result[task_name] = {
+                    "path": path,
+                    "stats": self._compute_stats(samples),
                 }
 
         self._console.print(
