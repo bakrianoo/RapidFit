@@ -1,0 +1,12 @@
+Generate {count} texts for "{task_name}" classification, targeting label "{target_label}".
+
+Reference examples (various labels):
+{examples}
+
+Rules:
+- Match the style and language patterns of the examples
+- All generated texts must belong to "{target_label}"
+- Ensure diversity in phrasing, tone, and context
+- No duplicates
+
+Return ONLY a JSON array of {count} strings.

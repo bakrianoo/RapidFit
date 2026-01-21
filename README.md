@@ -53,6 +53,10 @@ augmented = augmenter.augment(labeled_data)
 | `temperature` | `0.3` | Lower for consistent labels |
 | `save_path` | `./saved` | Output directory |
 | `save_format` | `jsonl` | Format: `json`, `jsonl`, or `csv` |
+| `fix_empty_labels` | `False` | Synthesize samples for labels with no data |
+| `min_samples_per_label` | `16` | Minimum synthesized per empty label |
+
+For the complete annotation workflow including label hints and synthesis options, see [Annotation Guide](docs/ANNOTATION_GUIDE.md).
 
 ## Augment Your Data
 

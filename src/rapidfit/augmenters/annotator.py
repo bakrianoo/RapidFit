@@ -9,6 +9,7 @@ from rapidfit.clients import ChatClient
 from rapidfit.io import DataSaver
 from rapidfit.prompts import load_prompt
 from rapidfit.types import Sample, SaveFormat, SeedData, TaskDefinition
+from rapidfit.augmenters.synthesizer import LLMSynthesizer
 
 
 class LLMAnnotator:
@@ -24,6 +25,8 @@ class LLMAnnotator:
         save_path: str = "./saved",
         save_format: SaveFormat | str = SaveFormat.JSONL,
         save_incremental: bool = True,
+        fix_empty_labels: bool = False,
+        min_samples_per_label: int = 16,
     ) -> None:
         self._client = ChatClient(api_key, base_url, model_id)
         self._batch_size = batch_size
@@ -32,6 +35,10 @@ class LLMAnnotator:
         self._console = Console()
         self._saver = DataSaver(save_path, save_format)
         self._save_incremental = save_incremental
+        self._fix_empty = fix_empty_labels
+        self._min_samples = min_samples_per_label
+        self._synthesizer = LLMSynthesizer(api_key, base_url, model_id) if fix_empty_labels else None
+        self._synth_counts: dict[str, dict[str, int]] = {}
 
     def annotate(
         self,
@@ -120,11 +127,39 @@ class LLMAnnotator:
                         if samples:
                             self._saver.save_task(task_name, samples)
 
+        if self._fix_empty and self._synthesizer:
+            self._fix_empty_labels(result, tasks)
+
         for task_name, samples in result.items():
             self._saver.save_task(task_name, samples)
 
         self._print_report(tasks, result)
         return result
+
+    def _fix_empty_labels(self, result: SeedData, tasks: list[TaskDefinition]) -> None:
+        """Synthesize samples for labels with no data."""
+        for task in tasks:
+            task_name = task["name"]
+            samples = result.get(task_name, [])
+            label_counts = {}
+            for s in samples:
+                label_counts[s["label"]] = label_counts.get(s["label"], 0) + 1
+
+            empty_labels = [l for l in task["labels"] if label_counts.get(l, 0) == 0]
+            if not empty_labels or not samples:
+                continue
+
+            non_empty = [c for c in label_counts.values() if c > 0]
+            target = max(self._min_samples, sum(non_empty) // len(non_empty)) if non_empty else self._min_samples
+            existing = {s["text"] for s in samples}
+            self._synth_counts[task_name] = {}
+
+            for label in empty_labels:
+                new_samples = self._synthesizer.synthesize(
+                    task_name, label, samples, target, existing
+                )
+                result[task_name].extend(new_samples)
+                self._synth_counts[task_name][label] = len(new_samples)
 
     def _format_task(self, task: TaskDefinition) -> str:
         """Format task definition for prompt."""
@@ -135,10 +170,12 @@ class LLMAnnotator:
 
     def _print_report(self, tasks: list[TaskDefinition], result: SeedData) -> None:
         """Print annotation summary report."""
+        synth_calls = self._synthesizer.call_count if self._synthesizer else 0
+        synth_tokens = self._synthesizer.total_tokens if self._synthesizer else 0
         self._console.print()
         self._console.print(
-            f"[bold green]Done![/] calls: {self._client.call_count}, "
-            f"tokens: {self._client.total_tokens}"
+            f"[bold green]Done![/] calls: {self._client.call_count + synth_calls}, "
+            f"tokens: {self._client.total_tokens + synth_tokens}"
         )
         self._console.print()
 
@@ -149,18 +186,26 @@ class LLMAnnotator:
             for s in samples:
                 label_counts[s["label"]] = label_counts.get(s["label"], 0) + 1
 
+            synth_map = self._synth_counts.get(task_name, {})
+
             table = Table(title=f"[bold]{task_name}[/]", show_header=True)
             table.add_column("Label", style="cyan")
-            table.add_column("Count", justify="right")
-            table.add_column("Status", justify="center")
+            table.add_column("Labeled", justify="right")
+            table.add_column("Synth", justify="right")
+            table.add_column("Total", justify="right")
 
+            total_labeled = 0
+            total_synth = 0
             for label in task["labels"]:
-                count = label_counts.get(label, 0)
-                status = "[green]✓[/]" if count > 0 else "[red]empty[/]"
-                table.add_row(label, str(count), status)
+                total = label_counts.get(label, 0)
+                synth = synth_map.get(label, 0)
+                labeled = total - synth
+                total_labeled += labeled
+                total_synth += synth
+                table.add_row(label, str(labeled), str(synth) if synth else "-", str(total))
 
-            table.add_row("", "", "")
-            table.add_row("[bold]Total[/]", f"[bold]{len(samples)}[/]", "")
+            table.add_row("", "", "", "")
+            table.add_row("[bold]Total[/]", f"[bold]{total_labeled}[/]", f"[bold]{total_synth}[/]", f"[bold]{len(samples)}[/]")
 
             self._console.print(table)
             self._console.print()

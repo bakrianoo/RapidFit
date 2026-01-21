@@ -2,7 +2,7 @@
 
 __version__ = "0.1.4"
 
-from rapidfit.augmenters import BaseAugmenter, LLMAnnotator, LLMAugmenter, LLMRefiner
+from rapidfit.augmenters import BaseAugmenter, LLMAnnotator, LLMAugmenter, LLMRefiner, LLMSynthesizer
 from rapidfit.classifiers import (
     BaseClassifier,
     ClassifierType,
@@ -52,6 +52,7 @@ __all__ = [
     "LLMAnnotator",
     "LLMAugmenter",
     "LLMRefiner",
+    "LLMSynthesizer",
     "LossConfig",
     "MultiheadClassifier",
     "MultiheadConfig",
