@@ -62,6 +62,7 @@ class LLMAnnotator:
         task_map = {t["name"]: set(t["labels"]) for t in tasks}
         result: SeedData = {t["name"]: [] for t in tasks}
         unique_texts: set[str] = set()
+        input_count = len(texts)
 
         if not self._overwrite:
             for task_name in result:
@@ -70,7 +71,12 @@ class LLMAnnotator:
                 unique_texts.update(s["text"] for s in existing)
 
         texts = [t for t in texts if t.strip() not in unique_texts]
+
+        if unique_texts:
+            self._console.print(f"[dim]Resuming: {len(unique_texts)} loaded, {len(texts)} remaining[/]")
+
         if not texts:
+            self._console.print("[yellow]All texts already annotated[/]")
             self._print_report(tasks, result)
             return result
 
