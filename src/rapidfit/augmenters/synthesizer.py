@@ -61,7 +61,6 @@ class LLMSynthesizer:
             existing_texts = set()
 
         collected: set[str] = set()
-        examples = self._format_examples(context_samples)
 
         with Progress(
             SpinnerColumn(),
@@ -80,6 +79,7 @@ class LLMSynthesizer:
 
             while len(collected) < count:
                 batch_count = min(self._batch_size, count - len(collected))
+                examples = self._format_examples(context_samples)
                 prompt = self._template.format(
                     task_name=task_name,
                     target_label=target_label,

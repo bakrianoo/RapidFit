@@ -25,7 +25,9 @@ class LLMAnnotator:
         save_path: str = "./saved",
         save_format: SaveFormat | str = SaveFormat.JSONL,
         save_incremental: bool = True,
+        overwrite: bool = False,
         fix_empty_labels: bool = False,
+        augment_sparse_labels: bool = False,
         min_samples_per_label: int = 16,
     ) -> None:
         self._client = ChatClient(api_key, base_url, model_id)
@@ -35,9 +37,11 @@ class LLMAnnotator:
         self._console = Console()
         self._saver = DataSaver(save_path, save_format)
         self._save_incremental = save_incremental
+        self._overwrite = overwrite
         self._fix_empty = fix_empty_labels
+        self._augment_sparse = augment_sparse_labels
         self._min_samples = min_samples_per_label
-        self._synthesizer = LLMSynthesizer(api_key, base_url, model_id) if fix_empty_labels else None
+        self._synthesizer = LLMSynthesizer(api_key, base_url, model_id) if fix_empty_labels or augment_sparse_labels else None
         self._synth_counts: dict[str, dict[str, int]] = {}
 
     def annotate(
@@ -58,6 +62,17 @@ class LLMAnnotator:
         task_map = {t["name"]: set(t["labels"]) for t in tasks}
         result: SeedData = {t["name"]: [] for t in tasks}
         unique_texts: set[str] = set()
+
+        if not self._overwrite:
+            for task_name in result:
+                existing = self._saver.load_task(task_name)
+                result[task_name] = existing
+                unique_texts.update(s["text"] for s in existing)
+
+        texts = [t for t in texts if t.strip() not in unique_texts]
+        if not texts:
+            self._print_report(tasks, result)
+            return result
 
         task_defs = "\n".join(self._format_task(t) for t in tasks)
         task_schema = ", ".join(f'"{t["name"]}": "label"' for t in tasks)
@@ -127,8 +142,8 @@ class LLMAnnotator:
                         if samples:
                             self._saver.save_task(task_name, samples)
 
-        if self._fix_empty and self._synthesizer:
-            self._fix_empty_labels(result, tasks)
+        if self._synthesizer:
+            self._synthesize_missing(result, tasks)
 
         for task_name, samples in result.items():
             self._saver.save_task(task_name, samples)
@@ -136,27 +151,36 @@ class LLMAnnotator:
         self._print_report(tasks, result)
         return result
 
-    def _fix_empty_labels(self, result: SeedData, tasks: list[TaskDefinition]) -> None:
-        """Synthesize samples for labels with no data."""
+    def _synthesize_missing(self, result: SeedData, tasks: list[TaskDefinition]) -> None:
+        """Synthesize samples for labels below minimum threshold."""
         for task in tasks:
             task_name = task["name"]
             samples = result.get(task_name, [])
+            if not samples:
+                continue
+
             label_counts = {}
             for s in samples:
                 label_counts[s["label"]] = label_counts.get(s["label"], 0) + 1
 
-            empty_labels = [l for l in task["labels"] if label_counts.get(l, 0) == 0]
-            if not empty_labels or not samples:
+            labels_to_fix = []
+            for label in task["labels"]:
+                count = label_counts.get(label, 0)
+                if count == 0 and self._fix_empty:
+                    labels_to_fix.append((label, count))
+                elif 0 < count < self._min_samples and self._augment_sparse:
+                    labels_to_fix.append((label, count))
+
+            if not labels_to_fix:
                 continue
 
-            non_empty = [c for c in label_counts.values() if c > 0]
-            target = max(self._min_samples, sum(non_empty) // len(non_empty)) if non_empty else self._min_samples
             existing = {s["text"] for s in samples}
             self._synth_counts[task_name] = {}
 
-            for label in empty_labels:
+            for label, current in labels_to_fix:
+                needed = self._min_samples - current
                 new_samples = self._synthesizer.synthesize(
-                    task_name, label, samples, target, existing
+                    task_name, label, samples, needed, existing
                 )
                 result[task_name].extend(new_samples)
                 self._synth_counts[task_name][label] = len(new_samples)

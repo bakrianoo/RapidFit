@@ -204,27 +204,85 @@ The actual count is `max(min_samples_per_label, average of non-empty labels)`. T
 
 ---
 
-### Use Case 5: "Resume from a crash"
+### Use Case 5: "Resume interrupted annotation"
 
 **Problem**: Annotation is expensive. If the process crashes halfway, you don't want to start over.
 
-**Solution**: Enable incremental saving (on by default).
+**Solution**: Just run again. With `overwrite=False` (default), existing data is loaded and already-annotated texts are skipped.
 
 ```python
 annotator = LLMAnnotator(
     api_key="your-api-key",
     save_path="./labeled",
-    save_incremental=True,  # Default
+    overwrite=False,  # Default
 )
+
+# First run: processes all 1000 texts, crashes at 500
+result = annotator.annotate(texts, tasks)
+
+# Second run: loads 500 saved, processes remaining 500
+result = annotator.annotate(texts, tasks)
 ```
 
-Each batch is saved immediately after processing. If you crash at batch 50 of 100, you have 50 batches saved.
+The annotator checks which texts are already labeled and skips them. Synthesis also accounts for existing counts—if a label already has 20 samples and `min_samples_per_label=32`, it only synthesizes 12 more.
 
-**To resume**: Load the saved file and filter out already-labeled texts before running again.
+**To start fresh**: Set `overwrite=True` to ignore existing data.
 
 ---
 
-### Use Case 6: "Use a different LLM provider"
+### Use Case 6: "Balance underrepresented labels"
+
+**Problem**: Some labels have samples, but not enough. You want to top them up to a minimum threshold.
+
+**Solution**: Enable `augment_sparse_labels` to synthesize for labels below `min_samples_per_label`.
+
+```python
+annotator = LLMAnnotator(
+    api_key="your-api-key",
+    augment_sparse_labels=True,
+    min_samples_per_label=32,
+)
+
+result = annotator.annotate(texts, tasks)
+```
+
+**What happens**:
+1. Annotator labels all texts normally
+2. Checks which labels have fewer than 32 samples
+3. For each sparse label, synthesizes enough to reach 32
+4. Report shows the breakdown
+
+```
+┌───────────────────────────────────┐
+│            intent                 │
+├──────────┬────────┬───────┬───────┤
+│ Label    │ Labeled│ Synth │ Total │
+├──────────┼────────┼───────┼───────┤
+│ purchase │ 45     │ -     │ 45    │
+│ support  │ 12     │ 20    │ 32    │  ← topped up
+│ browse   │ 28     │ 4     │ 32    │  ← topped up
+│ refund   │ 0      │ -     │ 0     │  ← not touched (use fix_empty_labels)
+├──────────┼────────┼───────┼───────┤
+│ Total    │ 85     │ 24    │ 109   │
+└──────────┴────────┴───────┴───────┘
+```
+
+**Note**: This only affects labels with at least one sample. For labels with zero samples, use `fix_empty_labels`.
+
+Combine both for full coverage:
+
+```python
+annotator = LLMAnnotator(
+    api_key="your-api-key",
+    fix_empty_labels=True,       # Handle zero-sample labels
+    augment_sparse_labels=True,  # Top up low-count labels
+    min_samples_per_label=32,
+)
+```
+
+---
+
+### Use Case 7: "Use a different LLM provider"
 
 **Problem**: You want to use a local model or a different API provider.
 
@@ -248,7 +306,7 @@ annotator = LLMAnnotator(
 
 ---
 
-### Use Case 7: "Chain annotation into augmentation"
+### Use Case 8: "Chain annotation into augmentation"
 
 **Problem**: You want to annotate, then immediately augment the labeled data.
 
@@ -270,7 +328,7 @@ The output of `annotate()` is `SeedData`, which is exactly what `augment()` expe
 
 ---
 
-### Use Case 8: "Train a classifier without augmentation"
+### Use Case 9: "Train a classifier without augmentation"
 
 **Problem**: You have enough annotated data and want to train directly.
 
@@ -314,8 +372,10 @@ No config files needed. Task names come from filenames, labels are inferred from
 | `save_path` | `"./saved"` | Directory for output files |
 | `save_format` | `"jsonl"` | Output format (json, jsonl, csv) |
 | `save_incremental` | `True` | Save after each batch |
+| `overwrite` | `False` | Ignore existing data and start fresh |
 | `fix_empty_labels` | `False` | Synthesize for empty labels |
-| `min_samples_per_label` | `16` | Minimum synthesized per label |
+| `augment_sparse_labels` | `False` | Top up labels below minimum |
+| `min_samples_per_label` | `16` | Target count for synthesis |
 
 ### Task Definition
 
@@ -336,20 +396,25 @@ annotate(texts, tasks)
         │
         ▼
 ┌───────────────────────────────────────┐
-│  1. Batch texts (default: 16 per batch) │
-│  2. For each batch:                     │
+│  1. Load existing data (if !overwrite) │
+│  2. Filter out already-labeled texts   │
+│  3. Batch remaining texts              │
+│  4. For each batch:                    │
 │     • Build prompt with task definitions│
 │     • LLM returns JSON: {id: {task: label}} │
 │     • Validate labels against task defs │
 │     • Save valid samples                │
 └───────────────────┬───────────────────┘
                     │
-        if fix_empty_labels
+        if fix_empty_labels or
+           augment_sparse_labels
                     │
                     ▼
 ┌───────────────────────────────────────┐
-│  3. Find labels with zero samples      │
-│  4. For each empty label:              │
+│  5. Count samples per label            │
+│  6. For labels needing synthesis:      │
+│     • Empty labels (if fix_empty)      │
+│     • Sparse labels (if augment_sparse)│
 │     • LLMSynthesizer generates samples │
 │     • Uses labeled data as few-shot    │
 └───────────────────┬───────────────────┘
@@ -383,7 +448,10 @@ annotate(texts, tasks)
 | Basic annotation | `annotator.annotate(texts, tasks)` |
 | Add labeling hints | `{"name": "x", "labels": [...], "instruction": "hint"}` |
 | Fix empty labels | `LLMAnnotator(..., fix_empty_labels=True)` |
+| Top up sparse labels | `LLMAnnotator(..., augment_sparse_labels=True)` |
 | Control synth count | `LLMAnnotator(..., min_samples_per_label=32)` |
+| Resume annotation | Just run again (default behavior) |
+| Start fresh | `LLMAnnotator(..., overwrite=True)` |
 | Use local model | `LLMAnnotator(..., base_url="http://localhost:11434/v1")` |
 | Save as JSON | `LLMAnnotator(..., save_format="json")` |
 | Larger batches | `LLMAnnotator(..., batch_size=32)` |
