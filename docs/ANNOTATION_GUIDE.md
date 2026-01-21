@@ -270,6 +270,36 @@ The output of `annotate()` is `SeedData`, which is exactly what `augment()` expe
 
 ---
 
+### Use Case 8: "Train a classifier without augmentation"
+
+**Problem**: You have enough annotated data and want to train directly.
+
+**Solution**: Pass the annotation result straight to `MultiheadClassifier`.
+
+```python
+from rapidfit import LLMAnnotator, MultiheadClassifier
+
+annotator = LLMAnnotator(api_key=key)
+labeled = annotator.annotate(texts, tasks)
+
+classifier = MultiheadClassifier()
+classifier.train(labeled)
+```
+
+Or load from the saved directory:
+
+```python
+annotator = LLMAnnotator(api_key=key, save_path="./labeled")
+annotator.annotate(texts, tasks)
+
+classifier = MultiheadClassifier()
+classifier.train(data_save_dir="./labeled")
+```
+
+No config files needed. Task names come from filenames, labels are inferred from samples.
+
+---
+
 ## Configuration Reference
 
 ### LLMAnnotator Parameters
@@ -357,6 +387,9 @@ annotate(texts, tasks)
 | Use local model | `LLMAnnotator(..., base_url="http://localhost:11434/v1")` |
 | Save as JSON | `LLMAnnotator(..., save_format="json")` |
 | Larger batches | `LLMAnnotator(..., batch_size=32)` |
+| Chain to augmenter | `augmenter.augment(labeled)` |
+| Train directly | `classifier.train(labeled)` |
+| Train from saved dir | `classifier.train(data_save_dir="./labeled")` |
 
 ---
 

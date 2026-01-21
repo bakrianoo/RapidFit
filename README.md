@@ -15,7 +15,7 @@ pip install rapidfit
 Have raw texts but no labels? Use `LLMAnnotator` to get LLM-generated labels, then expand with augmentation.
 
 ```python
-from rapidfit import LLMAnnotator, LLMAugmenter
+from rapidfit import LLMAnnotator, LLMAugmenter, MultiheadClassifier
 
 # Define your tasks and labels
 tasks = [
@@ -41,9 +41,13 @@ texts = [
 annotator = LLMAnnotator(api_key="your-api-key")
 labeled_data = annotator.annotate(texts, tasks)
 
-# Expand the labeled data
+# Option 1: Expand with augmentation first
 augmenter = LLMAugmenter(api_key="your-api-key", max_samples_per_task=128)
 augmented = augmenter.augment(labeled_data)
+
+# Option 2: Train directly on annotated data
+classifier = MultiheadClassifier()
+classifier.train(labeled_data)
 ```
 
 | Parameter | Default | Description |
