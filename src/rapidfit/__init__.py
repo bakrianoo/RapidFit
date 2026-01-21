@@ -2,7 +2,7 @@
 
 __version__ = "0.1.4"
 
-from rapidfit.augmenters import BaseAugmenter, LLMAugmenter, LLMRefiner
+from rapidfit.augmenters import BaseAugmenter, LLMAnnotator, LLMAugmenter, LLMRefiner
 from rapidfit.classifiers import (
     BaseClassifier,
     ClassifierType,
@@ -30,6 +30,7 @@ from rapidfit.types import (
     SaveFormat,
     SeedData,
     TaskAnalysis,
+    TaskDefinition,
     TaskResult,
     TaskStats,
     WriteMode,
@@ -48,6 +49,7 @@ __all__ = [
     "ErrorSample",
     "EvalConfig",
     "HeadConfig",
+    "LLMAnnotator",
     "LLMAugmenter",
     "LLMRefiner",
     "LossConfig",
@@ -59,6 +61,7 @@ __all__ = [
     "SaveFormat",
     "SeedData",
     "TaskAnalysis",
+    "TaskDefinition",
     "TaskResult",
     "TaskStats",
     "TrainingConfig",

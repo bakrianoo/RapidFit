@@ -1,0 +1,18 @@
+Classify texts for the given tasks.
+
+Tasks:
+{task_definitions}
+
+Texts:
+{texts}
+
+Rules:
+- Use ONLY provided labels
+- Judge by explicit content, not assumptions
+- If uncertain, use "SKIP" instead of guessing
+
+Return JSON object mapping text IDs to labels:
+{{
+  "1": {{{task_schema}}},
+  "2": {{{task_schema}}}
+}}
