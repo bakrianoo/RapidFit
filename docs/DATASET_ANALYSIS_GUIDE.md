@@ -367,7 +367,30 @@ classifier.train(data_save_dir="./refined")
 
 ---
 
-### Use Case 11: "Skip duplicate check for speed"
+### Use Case 11: "Remove corrupted or unwanted labels"
+
+**Problem**: Some labels in your data are garbage (e.g., "unknown", "other", typos). You want to exclude them.
+
+**Solution**: Use `ignore_labels` to specify labels to remove per task.
+
+```python
+from rapidfit import DatasetRefiner, RefinementConfig
+
+refiner = DatasetRefiner(RefinementConfig(
+    ignore_labels={
+        "sentiment": ["unknown", "mixed"],
+        "emotion": ["other", "n/a"],
+    },
+    save_path="./refined",
+))
+cleaned = refiner.refine(data_save_dir="./saved")
+```
+
+Samples with ignored labels are removed before any other refinement steps.
+
+---
+
+### Use Case 12: "Skip duplicate check for speed"
 
 **Problem**: Duplicate detection is O(n). On large datasets, you want to skip it.
 
@@ -401,6 +424,7 @@ report = analyzer.analyze(large_dataset)
 |-----------|---------|-------------|
 | `max_per_label` | `None` | Maximum samples per label |
 | `max_label_ratio` | `None` | Cap ratio relative to largest label |
+| `ignore_labels` | `{}` | Labels to remove per task: `{"task": ["label1", ...]}` |
 | `remove_short` | `False` | Remove short outliers |
 | `remove_long` | `False` | Remove long outliers |
 | `length_z_threshold` | `3.0` | Z-score threshold for removal |
@@ -491,6 +515,7 @@ refine(seed_data)
 | Stricter length detection | `AnalysisConfig(length_z_threshold=2.0)` |
 | Skip duplicate check | `AnalysisConfig(check_duplicates=False)` |
 | Refine from directory | `refiner.refine(data_save_dir="./saved")` |
+| Ignore specific labels | `RefinementConfig(ignore_labels={"task": ["bad"]})` |
 | Cap samples per label | `RefinementConfig(max_per_label=100)` |
 | Cap by ratio | `RefinementConfig(max_label_ratio=0.5)` |
 | Remove short texts | `RefinementConfig(remove_short=True)` |

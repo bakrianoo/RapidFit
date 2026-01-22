@@ -1,6 +1,6 @@
 """Configuration for dataset analysis and refinement."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from rapidfit.types import SaveFormat
 
@@ -21,6 +21,7 @@ class RefinementConfig:
 
     max_per_label: int | None = None
     max_label_ratio: float | None = None
+    ignore_labels: dict[str, list[str]] = field(default_factory=dict)
     remove_short: bool = False
     remove_long: bool = False
     length_z_threshold: float = 3.0

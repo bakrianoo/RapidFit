@@ -236,7 +236,7 @@ class DatasetRefiner:
         stats = {}
 
         for task, samples in data.items():
-            result, task_stats = self._refine_task(samples)
+            result, task_stats = self._refine_task(task, samples)
             refined[task] = result
             stats[task] = task_stats
 
@@ -246,10 +246,14 @@ class DatasetRefiner:
             return self._save(refined)
         return refined
 
-    def _refine_task(self, samples: list[Sample]) -> tuple[list[Sample], dict]:
+    def _refine_task(self, task: str, samples: list[Sample]) -> tuple[list[Sample], dict]:
         """Refine samples for a single task."""
         original = len(samples)
         result = list(samples)
+
+        ignored = set(self._config.ignore_labels.get(task, []))
+        if ignored:
+            result = [s for s in result if s["label"] not in ignored]
 
         if self._config.remove_empty:
             result = [s for s in result if s["text"].strip()]
