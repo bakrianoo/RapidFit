@@ -97,6 +97,34 @@ Configure generation with optional parameters:
 
 When using `append` mode, RapidFit loads existing data from the save path and skips duplicate texts during generation.
 
+## Analyze and Clean Your Data
+
+Before training, check your dataset for quality issues:
+
+```python
+from rapidfit import DatasetAnalyzer, DatasetRefiner, RefinementConfig
+
+# Analyze: detect imbalance, outliers, duplicates
+analyzer = DatasetAnalyzer()
+report = analyzer.analyze(seed_data)
+
+# Refine: fix issues
+refiner = DatasetRefiner(RefinementConfig(
+    max_per_label=100,
+    remove_duplicates=True,
+))
+cleaned = refiner.refine(seed_data)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `imbalance_ratio` | `0.1` | Flag labels below this ratio of largest |
+| `max_per_label` | `None` | Cap samples per label |
+| `remove_short` | `False` | Remove short text outliers |
+| `remove_duplicates` | `True` | Remove duplicate texts |
+
+For the complete analysis workflow, see [Dataset Analysis Guide](docs/DATASET_ANALYSIS_GUIDE.md).
+
 ## Train a Classifier
 
 One model, multiple tasks. The multihead architecture shares a single encoder across all your classification tasks, making it efficient and consistent.

@@ -113,6 +113,42 @@ class TaskDefinition(TypedDict, total=False):
     instruction: str
 
 
+class LabelDistribution(TypedDict):
+    """Label count and percentage in a task."""
+    count: int
+    percent: float
+
+
+class TextLengthStats(TypedDict):
+    """Text length statistics for a dataset."""
+    min: int
+    max: int
+    mean: float
+    std: float
+
+
+class DatasetIssue(TypedDict):
+    """A detected quality issue in the dataset."""
+    type: str
+    severity: str
+    message: str
+    samples: list[str]
+
+
+class TaskReport(TypedDict):
+    """Dataset quality report for a single task."""
+    total: int
+    labels: dict[str, LabelDistribution]
+    length: TextLengthStats
+    issues: list[DatasetIssue]
+
+
+class DatasetReport(TypedDict):
+    """Complete dataset quality report."""
+    tasks: dict[str, TaskReport]
+    total_issues: int
+
+
 SeedData = dict[str, list[Sample]]
 """Mapping of task names to lists of samples."""
 

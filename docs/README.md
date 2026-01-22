@@ -3,6 +3,7 @@
 ## Guides
 
 - [Annotation Guide](ANNOTATION_GUIDE.md) - Labeling unlabeled data with LLM-powered annotation
+- [Dataset Analysis Guide](DATASET_ANALYSIS_GUIDE.md) - Detecting and fixing data quality issues before training
 - [Refinement Guide](REFINEMENT_GUIDE.md) - Improving weak classes using error analysis
 - [Error Analysis Guide](ERROR_ANALYSIS_GUIDE.md) - Understanding and analyzing classification errors
 - [Multi-head Classifier](HOW_MULTIHEAD_CLASSIFIER.md) - Architecture and usage of the multi-head classification system
