@@ -49,7 +49,12 @@ Bad data → bad model. Before training, you want to catch:
 from rapidfit import DatasetAnalyzer
 
 analyzer = DatasetAnalyzer()
+
+# From SeedData dict
 report = analyzer.analyze(seed_data)
+
+# Or from saved directory
+report = analyzer.analyze(data_save_dir="./saved")
 ```
 
 Output:
@@ -77,7 +82,12 @@ refiner = DatasetRefiner(RefinementConfig(
     max_per_label=50,
     remove_duplicates=True,
 ))
+
+# From SeedData dict
 cleaned = refiner.refine(seed_data)
+
+# Or from saved directory
+cleaned = refiner.refine(data_save_dir="./saved")
 ```
 
 Output:
@@ -330,7 +340,34 @@ classifier.train(cleaned)
 
 ---
 
-### Use Case 10: "Skip duplicate check for speed"
+### Use Case 10: "Load from saved directory"
+
+**Problem**: Data is already saved from augmentation. You don't want to load it manually.
+
+**Solution**: Pass `data_save_dir` instead of `data`.
+
+```python
+from rapidfit import DatasetAnalyzer, DatasetRefiner, RefinementConfig
+
+# Analyze saved data
+analyzer = DatasetAnalyzer()
+report = analyzer.analyze(data_save_dir="./saved")
+
+# Refine and save to new location
+refiner = DatasetRefiner(RefinementConfig(
+    max_per_label=100,
+    save_path="./refined",
+))
+result = refiner.refine(data_save_dir="./saved")
+
+# Train directly from refined directory
+classifier = MultiheadClassifier()
+classifier.train(data_save_dir="./refined")
+```
+
+---
+
+### Use Case 11: "Skip duplicate check for speed"
 
 **Problem**: Duplicate detection is O(n). On large datasets, you want to skip it.
 
@@ -449,15 +486,17 @@ refine(seed_data)
 | I want to... | Code |
 |--------------|------|
 | Basic analysis | `DatasetAnalyzer().analyze(data)` |
+| Analyze from directory | `analyzer.analyze(data_save_dir="./saved")` |
 | Custom imbalance threshold | `AnalysisConfig(imbalance_ratio=0.2)` |
 | Stricter length detection | `AnalysisConfig(length_z_threshold=2.0)` |
 | Skip duplicate check | `AnalysisConfig(check_duplicates=False)` |
+| Refine from directory | `refiner.refine(data_save_dir="./saved")` |
 | Cap samples per label | `RefinementConfig(max_per_label=100)` |
 | Cap by ratio | `RefinementConfig(max_label_ratio=0.5)` |
 | Remove short texts | `RefinementConfig(remove_short=True)` |
 | Remove long texts | `RefinementConfig(remove_long=True)` |
 | Save refined data | `RefinementConfig(save_path="./refined")` |
-| Chain to training | `classifier.train(refiner.refine(data))` |
+| Chain to training | `classifier.train(data_save_dir="./refined")` |
 
 ---
 

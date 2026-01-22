@@ -27,8 +27,17 @@ class DatasetAnalyzer(BaseAnalyzer):
         self._config = config or AnalysisConfig()
         self._console = Console()
 
-    def analyze(self, data: SeedData) -> DatasetReport:
+    def analyze(
+        self,
+        data: SeedData | None = None,
+        data_save_dir: str | None = None,
+    ) -> DatasetReport:
         """Analyze dataset and print report."""
+        if data_save_dir:
+            data = self._load_from_dir(data_save_dir)
+        if not data:
+            raise ValueError("Provide data or data_save_dir")
+
         tasks = {}
         total_issues = 0
 
@@ -212,8 +221,17 @@ class DatasetRefiner:
             else None
         )
 
-    def refine(self, data: SeedData) -> SeedData | AugmentResult:
+    def refine(
+        self,
+        data: SeedData | None = None,
+        data_save_dir: str | None = None,
+    ) -> SeedData | AugmentResult:
         """Refine dataset and optionally save."""
+        if data_save_dir:
+            data = self._load_from_dir(data_save_dir)
+        if not data:
+            raise ValueError("Provide data or data_save_dir")
+
         refined = {}
         stats = {}
 
@@ -311,6 +329,21 @@ class DatasetRefiner:
                 "stats": {"total": len(samples), "labels": dict(labels)},
             }
         return result
+
+    def _load_from_dir(self, dir_path: str) -> SeedData:
+        """Load all task data from a directory."""
+        from pathlib import Path
+        from rapidfit.types import SaveFormat
+
+        path = Path(dir_path)
+        if not path.exists():
+            raise ValueError(f"Directory not found: {dir_path}")
+
+        for fmt in SaveFormat:
+            files = list(path.glob(f"*.{fmt.value}"))
+            if files:
+                return DataSaver(dir_path, fmt).load_all()
+        return {}
 
     def _print_stats(self, stats: dict[str, dict]) -> None:
         """Print refinement statistics."""
