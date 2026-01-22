@@ -10,6 +10,58 @@ RapidFit handles the two biggest pain points in text classification: **not enoug
 pip install rapidfit
 ```
 
+## Annotate Unlabeled Data
+
+Have raw texts but no labels? Use `LLMAnnotator` to get LLM-generated labels, then expand with augmentation.
+
+```python
+from rapidfit import LLMAnnotator, LLMAugmenter, MultiheadClassifier
+
+# Define your tasks and labels
+tasks = [
+    {
+        "name": "sentiment",
+        "labels": ["positive", "negative", "neutral"],
+        "instruction": "Judge by overall tone, not individual words"
+    },
+    {
+        "name": "urgency",
+        "labels": ["urgent", "normal", "low"]
+    },
+]
+
+# Your unlabeled texts
+texts = [
+    "This product exceeded my expectations!",
+    "Need immediate assistance with my order",
+    "Just browsing, thanks.",
+]
+
+# Annotate with LLM
+annotator = LLMAnnotator(api_key="your-api-key")
+labeled_data = annotator.annotate(texts, tasks)
+
+# Option 1: Expand with augmentation first
+augmenter = LLMAugmenter(api_key="your-api-key", max_samples_per_task=128)
+augmented = augmenter.augment(labeled_data)
+
+# Option 2: Train directly on annotated data
+classifier = MultiheadClassifier()
+classifier.train(labeled_data)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `model_id` | `gpt-4.1-mini` | LLM to use for annotation |
+| `batch_size` | `16` | Texts per annotation call |
+| `temperature` | `0.3` | Lower for consistent labels |
+| `save_path` | `./saved` | Output directory |
+| `save_format` | `jsonl` | Format: `json`, `jsonl`, or `csv` |
+| `fix_empty_labels` | `False` | Synthesize samples for labels with no data |
+| `min_samples_per_label` | `16` | Minimum synthesized per empty label |
+
+For the complete annotation workflow including label hints and synthesis options, see [Annotation Guide](docs/ANNOTATION_GUIDE.md).
+
 ## Augment Your Data
 
 Start with just a few examples. RapidFit uses LLMs to expand your dataset while preserving label quality.

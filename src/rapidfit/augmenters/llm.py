@@ -177,6 +177,8 @@ class LLMAugmenter(BaseAugmenter):
                     if self._save_incremental:
                         self._saver.save_task(task_name, augmented[task_name])
 
+                progress.update(task_id, completed=total_samples)
+
                 path = self._saver.save_task(task_name, augmented[task_name])
                 result[task_name] = {
                     "path": path,

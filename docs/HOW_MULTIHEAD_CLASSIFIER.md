@@ -208,6 +208,7 @@ config = MultiheadConfig(
     eval=EvalConfig(
         patience=2,               # Stop after 2 epochs without improvement
         min_delta=0.005,          # Improvement must be at least 0.5%
+        metric="accuracy",        # Use "f1" for F1-based early stopping
     ),
 )
 ```
@@ -322,6 +323,37 @@ config = MultiheadConfig(
 
 ---
 
+### Use Case 10: "I want to optimize for F1 score instead of accuracy"
+
+**Problem**: Your classes are imbalanced, and accuracy is misleading. You want the model to optimize for balanced precision and recall.
+
+**Solution**: Use F1 as the validation metric for early stopping and best model selection.
+
+```python
+from rapidfit import MultiheadConfig, EvalConfig
+
+config = MultiheadConfig(
+    eval=EvalConfig(
+        metric="f1",              # Use macro F1 instead of accuracy
+        patience=3,               # Stop after 3 epochs without F1 improvement
+    ),
+)
+```
+
+**What's happening**: During validation, the model computes both accuracy and F1 (macro-averaged across classes). When `metric="f1"`, the trainer saves checkpoints based on F1 score and stops early when F1 plateaus.
+
+**When to use**:
+- Imbalanced datasets where accuracy is misleading
+- Multi-class problems where you care about all classes equally
+- When false positives and false negatives matter equally
+
+**Metric options**:
+- `accuracy` (default): Simple accuracy metric
+- `f1`: Macro-averaged F1 score across all classes
+- `loss`: Use validation loss for model selection
+
+---
+
 ## Configuration Quick Reference
 
 | I want to... | Configuration |
@@ -335,6 +367,7 @@ config = MultiheadConfig(
 | Get maximum accuracy | `encoder.unfreeze_layers=6`, `training.epochs=20` |
 | Handle short texts | `pooling="cls"` |
 | Control data splits | `training.test_size=0.15`, `training.val_size=0.15` |
+| Optimize for F1 score | `eval.metric="f1"` |
 
 ---
 

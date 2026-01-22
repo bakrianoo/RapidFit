@@ -355,6 +355,7 @@ class MultiheadClassifier(BaseClassifier):
         )
 
         self._is_trained = True
+        self._display_training_report()
         console.print("[green]Training complete![/green]")
 
     def _train_phase(
@@ -366,8 +367,9 @@ class MultiheadClassifier(BaseClassifier):
         phase_name: str,
         freeze_encoder: bool,
     ) -> None:
-        console.print(f"\n[bold cyan]Phase: {phase_name}[/bold cyan]")
         cfg = self._cfg
+        console.print(f"\n[bold cyan]Phase: {phase_name}[/bold cyan]")
+        console.print(f"[dim]Validation metric: {cfg.eval.metric}[/dim]")
 
         if freeze_encoder:
             self._model.freeze_encoder()
@@ -414,7 +416,9 @@ class MultiheadClassifier(BaseClassifier):
             train_dataset=datasets["train"],
             eval_dataset=datasets["validation"],
             data_collator=collator,
-            compute_metrics=self._compute_metrics,
+            compute_metrics=lambda eval_pred: self._compute_metrics(
+                eval_pred, cfg.eval.metric
+            ),
             callbacks=callbacks,
             task_sampling=cfg.task_sampling,
         )
@@ -422,10 +426,16 @@ class MultiheadClassifier(BaseClassifier):
         trainer.train()
 
     @staticmethod
-    def _compute_metrics(eval_pred) -> dict[str, float]:
+    def _compute_metrics(eval_pred, metric: str = "f1") -> dict[str, float]:
+        from sklearn.metrics import f1_score
+        
         logits, labels = eval_pred
         preds = np.argmax(logits, axis=-1)
-        return {"accuracy": (preds == labels).mean()}
+        
+        accuracy = float((preds == labels).mean())
+        f1 = float(f1_score(labels, preds, average="macro", zero_division=0))
+        
+        return {"accuracy": accuracy, "f1": f1}
 
     def predict(self, texts: list[str], task: str) -> list[Prediction]:
         """Predict labels for texts using task-specific head."""
@@ -686,6 +696,119 @@ class MultiheadClassifier(BaseClassifier):
             table.add_row(task, str(len(samples)), str(len(labels)))
 
         console.print(table)
+
+    def _display_training_report(self) -> None:
+        console.print("\n[bold cyan]Training Report[/bold cyan]")
+
+        val_results = self._evaluate_split("validation")
+        test_results = self._evaluate_split("test")
+
+        summary_table = Table(title="F1 Scores Summary")
+        summary_table.add_column("Task", style="cyan")
+        summary_table.add_column("Validation", justify="right", style="yellow")
+        summary_table.add_column("Test", justify="right", style="green")
+
+        for task in sorted(val_results.keys(), key=lambda t: test_results[t], reverse=True):
+            val_f1 = val_results[task]
+            test_f1 = test_results[task]
+            summary_table.add_row(
+                task,
+                f"{val_f1:.4f}",
+                f"{test_f1:.4f}",
+            )
+
+        console.print(summary_table)
+
+        self._display_detailed_f1("validation", val_results)
+        self._display_detailed_f1("test", test_results)
+
+    def _evaluate_split(self, split: str) -> dict[str, float]:
+        dataset = self._splits[split]
+        task_f1 = {}
+
+        for task in self._model.task_heads.keys():
+            indices = [i for i, item in enumerate(dataset) if item["task"] == task]
+            if not indices:
+                continue
+
+            texts = [dataset[i]["text"] for i in indices]
+            y_true = [dataset[i]["label"] for i in indices]
+            labels = list(self._id_maps[task].values())
+
+            predictions = self.predict(texts, task)
+            y_pred = [self._label_maps[task][p["label"]] for p in predictions]
+            confidences = [p["confidence"] for p in predictions]
+
+            analysis = compute_task_analysis(
+                texts, y_true, y_pred, confidences, labels
+            )
+
+            f1_scores = [m["f1"] for m in analysis["class_metrics"].values()]
+            task_f1[task] = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
+
+        return task_f1
+
+    def _display_detailed_f1(self, split: str, task_f1: dict[str, float]) -> None:
+        dataset = self._splits[split]
+        split_title = split.capitalize()
+
+        console.print(f"\n[bold]{split_title} Set - Detailed F1 Scores[/bold]")
+
+        for task in sorted(task_f1.keys(), key=task_f1.get, reverse=True):
+            indices = [i for i, item in enumerate(dataset) if item["task"] == task]
+            if not indices:
+                continue
+
+            texts = [dataset[i]["text"] for i in indices]
+            y_true = [dataset[i]["label"] for i in indices]
+            labels = list(self._id_maps[task].values())
+
+            predictions = self.predict(texts, task)
+            y_pred = [self._label_maps[task][p["label"]] for p in predictions]
+            confidences = [p["confidence"] for p in predictions]
+
+            analysis = compute_task_analysis(
+                texts, y_true, y_pred, confidences, labels
+            )
+
+            detail_table = Table(title=f"{task}")
+            detail_table.add_column("Label", style="cyan")
+            detail_table.add_column("Precision", justify="right")
+            detail_table.add_column("Recall", justify="right")
+            detail_table.add_column("F1", justify="right", style="bold")
+            detail_table.add_column("Support", justify="right")
+
+            for label, metrics in analysis["class_metrics"].items():
+                detail_table.add_row(
+                    label,
+                    f"{metrics['precision']:.4f}",
+                    f"{metrics['recall']:.4f}",
+                    f"{metrics['f1']:.4f}",
+                    str(metrics["support"]),
+                )
+
+            console.print(detail_table)
+
+            confusions = []
+            matrix = analysis["confusion_matrix"]
+            for i, true_label in enumerate(labels):
+                for j, pred_label in enumerate(labels):
+                    if i != j and matrix[i][j] > 0:
+                        confusions.append((true_label, pred_label, matrix[i][j]))
+
+            confusions.sort(key=lambda x: x[2], reverse=True)
+            top_confusions = confusions[:5]
+
+            if top_confusions:
+                confusion_table = Table(title="Top 5 Confused Classes")
+                confusion_table.add_column("True Label", style="green")
+                confusion_table.add_column("Predicted As", style="red")
+                confusion_table.add_column("Count", justify="right", style="yellow")
+
+                for true_label, pred_label, count in top_confusions:
+                    confusion_table.add_row(true_label, pred_label, str(count))
+
+                console.print(confusion_table)
 
     @property
     def tasks(self) -> list[str]:

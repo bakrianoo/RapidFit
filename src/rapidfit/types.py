@@ -106,6 +106,13 @@ class RefinementInstruction(TypedDict):
     length: LengthStats
 
 
+class TaskDefinition(TypedDict, total=False):
+    """Definition of a classification task for annotation."""
+    name: str
+    labels: list[str]
+    instruction: str
+
+
 SeedData = dict[str, list[Sample]]
 """Mapping of task names to lists of samples."""
 

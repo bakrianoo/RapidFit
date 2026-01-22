@@ -6,7 +6,7 @@ from typing import Literal
 PoolingStrategy = Literal["mean", "cls", "max"]
 ActivationType = Literal["gelu", "relu", "silu", "tanh"]
 TaskSampling = Literal["proportional", "equal", "sqrt"]
-EarlyStoppingMetric = Literal["loss", "accuracy"]
+EarlyStoppingMetric = Literal["loss", "accuracy", "f1"]
 
 
 @dataclass
@@ -63,7 +63,7 @@ class EvalConfig:
     """Evaluation and early stopping configuration."""
 
     patience: int = 3
-    metric: EarlyStoppingMetric = "accuracy"
+    metric: EarlyStoppingMetric = "f1"
     min_delta: float = 0.001
 
 
