@@ -63,7 +63,7 @@ class EvalConfig:
     """Evaluation and early stopping configuration."""
 
     patience: int = 3
-    metric: EarlyStoppingMetric = "accuracy"
+    metric: EarlyStoppingMetric = "f1"
     min_delta: float = 0.001
 
 

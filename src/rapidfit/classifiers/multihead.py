@@ -426,16 +426,16 @@ class MultiheadClassifier(BaseClassifier):
         trainer.train()
 
     @staticmethod
-    def _compute_metrics(eval_pred, metric: str = "accuracy") -> dict[str, float]:
+    def _compute_metrics(eval_pred, metric: str = "f1") -> dict[str, float]:
+        from sklearn.metrics import f1_score
+        
         logits, labels = eval_pred
         preds = np.argmax(logits, axis=-1)
         
-        if metric == "f1":
-            from sklearn.metrics import f1_score
-            f1 = f1_score(labels, preds, average="macro", zero_division=0)
-            return {"f1": float(f1), "accuracy": float((preds == labels).mean())}
+        accuracy = float((preds == labels).mean())
+        f1 = float(f1_score(labels, preds, average="macro", zero_division=0))
         
-        return {"accuracy": float((preds == labels).mean())}
+        return {"accuracy": accuracy, "f1": f1}
 
     def predict(self, texts: list[str], task: str) -> list[Prediction]:
         """Predict labels for texts using task-specific head."""
