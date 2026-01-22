@@ -708,7 +708,7 @@ class MultiheadClassifier(BaseClassifier):
         summary_table.add_column("Validation", justify="right", style="yellow")
         summary_table.add_column("Test", justify="right", style="green")
 
-        for task in sorted(val_results.keys()):
+        for task in sorted(val_results.keys(), key=lambda t: test_results[t], reverse=True):
             val_f1 = val_results[task]
             test_f1 = test_results[task]
             summary_table.add_row(
@@ -754,7 +754,7 @@ class MultiheadClassifier(BaseClassifier):
 
         console.print(f"\n[bold]{split_title} Set - Detailed F1 Scores[/bold]")
 
-        for task in sorted(task_f1.keys()):
+        for task in sorted(task_f1.keys(), key=task_f1.get, reverse=True):
             indices = [i for i, item in enumerate(dataset) if item["task"] == task]
             if not indices:
                 continue
@@ -788,6 +788,27 @@ class MultiheadClassifier(BaseClassifier):
                 )
 
             console.print(detail_table)
+
+            confusions = []
+            matrix = analysis["confusion_matrix"]
+            for i, true_label in enumerate(labels):
+                for j, pred_label in enumerate(labels):
+                    if i != j and matrix[i][j] > 0:
+                        confusions.append((true_label, pred_label, matrix[i][j]))
+
+            confusions.sort(key=lambda x: x[2], reverse=True)
+            top_confusions = confusions[:5]
+
+            if top_confusions:
+                confusion_table = Table(title="Top 5 Confused Classes")
+                confusion_table.add_column("True Label", style="green")
+                confusion_table.add_column("Predicted As", style="red")
+                confusion_table.add_column("Count", justify="right", style="yellow")
+
+                for true_label, pred_label, count in top_confusions:
+                    confusion_table.add_row(true_label, pred_label, str(count))
+
+                console.print(confusion_table)
 
     @property
     def tasks(self) -> list[str]:
