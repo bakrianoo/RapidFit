@@ -96,14 +96,17 @@ class LLMSynthesizer:
                         if text and text not in collected and text not in existing_texts:
                             collected.add(text)
                             existing_texts.add(text)
-                            progress.update(
-                                task_id,
-                                calls=self._client.call_count,
-                                tokens=self._client.total_tokens,
-                            )
                             progress.advance(task_id)
                             if len(collected) >= count:
                                 break
+
+                progress.update(
+                    task_id,
+                    calls=self._client.call_count,
+                    tokens=self._client.total_tokens,
+                )
+
+            progress.update(task_id, completed=count)
 
         return [{"text": t, "label": target_label} for t in collected]
 

@@ -148,6 +148,8 @@ class LLMAnnotator:
                         if samples:
                             self._saver.save_task(task_name, samples)
 
+            progress.update(task_id, completed=len(texts))
+
         if self._synthesizer:
             self._synthesize_missing(result, tasks)
 

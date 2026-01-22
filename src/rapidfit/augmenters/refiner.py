@@ -183,6 +183,8 @@ class LLMRefiner:
                     )
                     base_samples.extend(new_samples)
 
+                progress.update(task_id, completed=total)
+
                 random.shuffle(base_samples)
                 path = self._saver.save_task(task_name, base_samples)
                 result[task_name] = {
