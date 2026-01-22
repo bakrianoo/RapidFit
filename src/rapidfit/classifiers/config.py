@@ -6,7 +6,7 @@ from typing import Literal
 PoolingStrategy = Literal["mean", "cls", "max"]
 ActivationType = Literal["gelu", "relu", "silu", "tanh"]
 TaskSampling = Literal["proportional", "equal", "sqrt"]
-EarlyStoppingMetric = Literal["loss", "accuracy"]
+EarlyStoppingMetric = Literal["loss", "accuracy", "f1"]
 
 
 @dataclass

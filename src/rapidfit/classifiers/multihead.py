@@ -355,6 +355,7 @@ class MultiheadClassifier(BaseClassifier):
         )
 
         self._is_trained = True
+        self._display_training_report()
         console.print("[green]Training complete![/green]")
 
     def _train_phase(
@@ -366,8 +367,9 @@ class MultiheadClassifier(BaseClassifier):
         phase_name: str,
         freeze_encoder: bool,
     ) -> None:
-        console.print(f"\n[bold cyan]Phase: {phase_name}[/bold cyan]")
         cfg = self._cfg
+        console.print(f"\n[bold cyan]Phase: {phase_name}[/bold cyan]")
+        console.print(f"[dim]Validation metric: {cfg.eval.metric}[/dim]")
 
         if freeze_encoder:
             self._model.freeze_encoder()
@@ -414,7 +416,9 @@ class MultiheadClassifier(BaseClassifier):
             train_dataset=datasets["train"],
             eval_dataset=datasets["validation"],
             data_collator=collator,
-            compute_metrics=self._compute_metrics,
+            compute_metrics=lambda eval_pred: self._compute_metrics(
+                eval_pred, cfg.eval.metric
+            ),
             callbacks=callbacks,
             task_sampling=cfg.task_sampling,
         )
@@ -422,10 +426,16 @@ class MultiheadClassifier(BaseClassifier):
         trainer.train()
 
     @staticmethod
-    def _compute_metrics(eval_pred) -> dict[str, float]:
+    def _compute_metrics(eval_pred, metric: str = "accuracy") -> dict[str, float]:
         logits, labels = eval_pred
         preds = np.argmax(logits, axis=-1)
-        return {"accuracy": (preds == labels).mean()}
+        
+        if metric == "f1":
+            from sklearn.metrics import f1_score
+            f1 = f1_score(labels, preds, average="macro", zero_division=0)
+            return {"f1": float(f1), "accuracy": float((preds == labels).mean())}
+        
+        return {"accuracy": float((preds == labels).mean())}
 
     def predict(self, texts: list[str], task: str) -> list[Prediction]:
         """Predict labels for texts using task-specific head."""
@@ -686,6 +696,98 @@ class MultiheadClassifier(BaseClassifier):
             table.add_row(task, str(len(samples)), str(len(labels)))
 
         console.print(table)
+
+    def _display_training_report(self) -> None:
+        console.print("\n[bold cyan]Training Report[/bold cyan]")
+
+        val_results = self._evaluate_split("validation")
+        test_results = self._evaluate_split("test")
+
+        summary_table = Table(title="F1 Scores Summary")
+        summary_table.add_column("Task", style="cyan")
+        summary_table.add_column("Validation", justify="right", style="yellow")
+        summary_table.add_column("Test", justify="right", style="green")
+
+        for task in sorted(val_results.keys()):
+            val_f1 = val_results[task]
+            test_f1 = test_results[task]
+            summary_table.add_row(
+                task,
+                f"{val_f1:.4f}",
+                f"{test_f1:.4f}",
+            )
+
+        console.print(summary_table)
+
+        self._display_detailed_f1("validation", val_results)
+        self._display_detailed_f1("test", test_results)
+
+    def _evaluate_split(self, split: str) -> dict[str, float]:
+        dataset = self._splits[split]
+        task_f1 = {}
+
+        for task in self._model.task_heads.keys():
+            indices = [i for i, item in enumerate(dataset) if item["task"] == task]
+            if not indices:
+                continue
+
+            texts = [dataset[i]["text"] for i in indices]
+            y_true = [dataset[i]["label"] for i in indices]
+            labels = list(self._id_maps[task].values())
+
+            predictions = self.predict(texts, task)
+            y_pred = [self._label_maps[task][p["label"]] for p in predictions]
+            confidences = [p["confidence"] for p in predictions]
+
+            analysis = compute_task_analysis(
+                texts, y_true, y_pred, confidences, labels
+            )
+
+            f1_scores = [m["f1"] for m in analysis["class_metrics"].values()]
+            task_f1[task] = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
+
+        return task_f1
+
+    def _display_detailed_f1(self, split: str, task_f1: dict[str, float]) -> None:
+        dataset = self._splits[split]
+        split_title = split.capitalize()
+
+        console.print(f"\n[bold]{split_title} Set - Detailed F1 Scores[/bold]")
+
+        for task in sorted(task_f1.keys()):
+            indices = [i for i, item in enumerate(dataset) if item["task"] == task]
+            if not indices:
+                continue
+
+            texts = [dataset[i]["text"] for i in indices]
+            y_true = [dataset[i]["label"] for i in indices]
+            labels = list(self._id_maps[task].values())
+
+            predictions = self.predict(texts, task)
+            y_pred = [self._label_maps[task][p["label"]] for p in predictions]
+            confidences = [p["confidence"] for p in predictions]
+
+            analysis = compute_task_analysis(
+                texts, y_true, y_pred, confidences, labels
+            )
+
+            detail_table = Table(title=f"{task}")
+            detail_table.add_column("Label", style="cyan")
+            detail_table.add_column("Precision", justify="right")
+            detail_table.add_column("Recall", justify="right")
+            detail_table.add_column("F1", justify="right", style="bold")
+            detail_table.add_column("Support", justify="right")
+
+            for label, metrics in analysis["class_metrics"].items():
+                detail_table.add_row(
+                    label,
+                    f"{metrics['precision']:.4f}",
+                    f"{metrics['recall']:.4f}",
+                    f"{metrics['f1']:.4f}",
+                    str(metrics["support"]),
+                )
+
+            console.print(detail_table)
 
     @property
     def tasks(self) -> list[str]:
